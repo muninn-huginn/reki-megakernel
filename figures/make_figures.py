@@ -98,8 +98,9 @@ def fig_latency():
     ax_e.set_title('eager (separate scale)')
     ax.set_title('Kyutai compiled vs megakernel')
     ax.axhline(1000 / 60, color=C['k'], lw=0.8, ls='--')
-    ax.text(ax.get_xlim()[1], 1000 / 60, '60 Hz budget 16.7 ms', ha='right', va='bottom', fontsize=8)
-    ax.legend(loc='lower right', fontsize=8, framealpha=0.9)
+    ax.set_xlim(-2.4, ax.get_xlim()[1])  # empty strip left of the bars for the budget label
+    ax.text(-2.35, 1000 / 60 + 0.3, '60 Hz budget\n16.7 ms', ha='left', va='bottom', fontsize=8)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.16), ncol=3, fontsize=8, frameon=False)
     fig.suptitle('REKI predict latency, H100 SXM, batch 1, 440 LIBERO frames × 2 (880 timed calls per bar)')
     save(fig, 'a_latency')
 
