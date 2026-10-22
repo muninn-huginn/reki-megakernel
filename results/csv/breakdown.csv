@@ -1,0 +1,25 @@
+source,mode,part,ms,total_ms
+original,compiled,CPU preprocessing,2.1588480472564697,21.627647399902344
+original,compiled,VLM prefill: vision tower,2.8725759983062744,21.627647399902344
+original,compiled,VLM prefill: LM + host glue,8.105120420455933,21.627647399902344
+original,compiled,expert: modulations + register_prepare + Euler step 1,1.3215839862823486,21.627647399902344
+original,compiled,expert: Euler steps 2–10,6.886671781539917,21.627647399902344
+original,compiled,"other (gather, register append, decode + D2H)",0.284639997407794,21.627647399902344
+original,mk,CPU preprocessing,2.0013439655303955,18.754207611083984
+original,mk,VLM prefill: vision tower,2.8856160640716553,18.754207611083984
+original,mk,VLM prefill: LM + host glue,8.06775975227356,18.754207611083984
+original,mk,expert: modulations + register_prepare + Euler step 1,1.3344160318374634,18.754207611083984
+original,mk,expert: Euler steps 2–10,4.1580318212509155,18.754207611083984
+original,mk,"other (gather, register append, decode + D2H)",0.2856640014797449,18.754207611083984
+verification,compiled,CPU preprocessing,1.9477440118789673,21.36128044128418
+verification,compiled,VLM prefill: vision tower,2.865056037902832,21.36128044128418
+verification,compiled,VLM prefill: LM + host glue,8.107487678527832,21.36128044128418
+verification,compiled,expert: modulations + register_prepare + Euler step 1,1.3086400032043457,21.36128044128418
+verification,compiled,expert: Euler steps 2–10,6.830079555511475,21.36128044128418
+verification,compiled,"other (gather, register append, decode + D2H)",0.28083200566470623,21.36128044128418
+verification,mk,CPU preprocessing,1.898751974105835,18.584224700927734
+verification,mk,VLM prefill: vision tower,2.8687520027160645,18.584224700927734
+verification,mk,VLM prefill: LM + host glue,8.048847675323486,18.584224700927734
+verification,mk,expert: modulations + register_prepare + Euler step 1,1.31113600730896,18.584224700927734
+verification,mk,expert: Euler steps 2–10,4.143999814987183,18.584224700927734
+verification,mk,"other (gather, register append, decode + D2H)",0.28175999596714973,18.584224700927734

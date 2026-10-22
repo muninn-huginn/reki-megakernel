@@ -91,7 +91,7 @@ def fig_latency():
                 axis.text(x, r['p99_ms'], f"{r['median_ms']:.1f}\n({r['p99_ms']:.1f})", ha='center', va='bottom',
                           fontsize=8)
                 xs.append(x)
-                labels.append(f'{src}\n{run.replace("_", " ")}')
+                labels.append(f'{"orig." if src == "original" else "verif."}\nrun {run[-1].upper()}')
         axis.set_xticks(xs, labels, fontsize=7)
         axis.set_ylabel('ms per predict (median, p99 in light)')
         axis.set_ylim(0, max(r['p99_ms'] for r in rows if r['mode'] in modes) * 1.18)
@@ -131,7 +131,8 @@ def fig_cdf():
 
 # ------------------------------------------------------------------------------------------------ (c) breakdown
 PARTS = [('CPU preprocessing', 'c'), ('VLM prefill: vision tower', 'd'), ('VLM prefill: LM + host glue', 'compiled'),
-         ('expert: modulations + register_prepare + Euler step 1', 'a'), ('expert: Euler steps 2–10', 'mk'),
+         ('expert: modulations + register_prepare + Euler step 1', 'a'),
+         ('expert: rest of the graph (Euler steps 2–10)', 'mk'),
          ('other (gather, register append, decode + D2H)', 'eager')]
 
 
@@ -274,6 +275,8 @@ def fig_tuning():
         ax.axhline(v, color=C['k'], lw=0.8, ls='--')
     ax.text(3.5, ref[0], f'Kyutai compiled, steps 2–10: {ref[0]:.2f} ms', ha='right', va='bottom', fontsize=8)
     ax.set_yscale('log')
+    ax.set_yticks([4, 5, 7, 10, 20, 40, 70], ['4', '5', '7', '10', '20', '40', '70'])
+    ax.minorticks_off()
     ax.set_xticks(range(4), ['v1\nK-looped tiles', 'v2\nregister prefetch', 'v3\nsingle-shot tiles',
                              'v4 (final)\nv1 tiles + parallel tail'])
     ax.set_ylabel('Euler steps 2–10, graph replay ms (log)')

@@ -14,7 +14,8 @@ takes a full `predict` from 20.9–21.7 ms (Kyutai's compiled path, two runs; th
 (9.15 ms, 2,366 kernels) is untouched and is now the largest cost.
 
 All numbers below come from the JSON files in [`results/`](results/); [`results/verification/`](results/verification/)
-is an independent re-run from a fresh clone of this repository (see [Verification](#verification)).
+is an independent re-run from a fresh clone of this repository on another H100 SXM machine: compiled
+21.0 ms, megakernel 18.2–18.35 ms median (1.15×), max |Δ| 5.5e-3 (see [Verification](#verification)).
 
 ## Background
 
@@ -82,10 +83,10 @@ bound.
 
 | version | idea | ms | source |
 |---|---|---:|---|
-| v1 ([`archive/`](archive/)) | K-looped GEMM tiles (BK 128), one-program step tail | 5.89 | report; the log of this run was not kept — re-measured in verification |
+| v1 ([`archive/`](archive/)) | K-looped GEMM tiles (BK 128), one-program step tail | 5.89 | log not kept; 5.92 in verification |
 | v1 tuned | BK 256, 8 warps | 4.84 | `results/original/logs/log_tune5.txt` |
 | v2 | single-shot tiles + next stage's weights prefetched into registers before each barrier | 63.3 (13.4 with 4 warps) | `log_tune2.txt`; register spills |
-| v3 | single-shot tiles, no large prefetch | 48.6; 10.8 with `maxnreg=255` | `log_tune3/4.txt`; 1.2–1.9 KB spills |
+| v3 | single-shot tiles, no large prefetch | 48.6; 11.2 with `maxnreg=255`, 10.8 with `maxnreg=255` + 4 warps | `log_tune3/4.txt`; 1.2–2.1 KB spills |
 | **v4** (final) | v1 tiles + one-round-trip RMS pass + parallel step tail, 4 warps | **4.01** | `log_tune6–8.txt` |
 | v4 + L2 prefetch | idle programs `prefetch.global.L2` the next stages' weights | 4.17–4.18 | `log_tune7/8.txt`: GEMM stages gain, barriers wait on the prefetchers |
 | v4, 2 programs per SM | more tiles in flight | 4.17–4.45 | `log_tune9.txt` |
@@ -148,24 +149,67 @@ of the normalized chunk (values within ±1.03):
 The megakernel is as close to the compiled path as Kyutai's eager and compiled paths are to each other
 (bf16 rounding order; neither Inductor nor the megakernel is bit-exact against eager). The register cache
 is produced by step 1, which stays Kyutai's, so differences do not accumulate across frames. Single-input
-check (`src/test_mk.py`): 2.3e-3 megakernel vs compiled (`results/original/logs/`); the
-compiled-vs-eager value of that check was not saved in the original run (see verification).
+check (`src/test_mk.py`, steps 2–10 only): 2.3e-3 megakernel vs compiled in the original tuning logs; the
+compiled-vs-eager value of that check was not saved there (1.8e-3 in the verification run).
 
 ## Verification
 
-VERIFICATION_PLACEHOLDER
+A fresh H100 SXM pod (same GPU model and driver 595.91, different machine) cloned this repository and ran
+only the [Reproduce](#reproduce) steps (`make setup`, `make all`, `make figures`). Results in
+[`results/verification/`](results/verification/):
+
+| | original (run A / run B) | verification (run A / run B) |
+|---|---:|---:|
+| eager median (p99), ms | 156.2 (187.8) | 153.0 (179.2) |
+| compiled median (p99), ms | 21.73 (24.98) / 20.94 (21.95) | 21.04 (22.58) / 21.01 (23.25) |
+| megakernel median (p99), ms | 18.41 (18.74) / 18.33 (18.72) | 18.35 (19.16) / 18.19 (18.99) |
+| speed-up, same run | 1.18× / 1.14× | 1.15× / 1.15× |
+| max \|Δ\| megakernel vs compiled / compiled vs eager / megakernel vs eager | 5.5e-3 / 6.9e-3 / 5.8e-3 | 5.5e-3 / 7.2e-3 / 5.0e-3 |
+| kernels per predict: eager / compiled / megakernel | 13,972 / 4,837 / 2,791 | 13,972 / 4,817 / 2,780 |
+| expert graph kernels: compiled / megakernel | 2,453 / 407 | 2,433 / 396 |
+| Euler steps 2–10, graph replay: compiled / megakernel, ms | 6.99 / 4.03 | 6.96 / 4.01 |
+| whole expert graph: compiled / megakernel, ms | 8.26 / 5.36 | 8.25 / 5.33 |
+| stage total (GPU timeline): compiled / megakernel, ms | 21.63 / 18.75 | 21.36 / 18.58 |
+| single-input check (`test_mk.py`): megakernel vs compiled / compiled vs eager | 2.3e-3 / not saved | 1.9e-3 / 1.8e-3 |
+| grid barrier, µs | 1.0 | 1.02 |
+
+Medians reproduce within the run-to-run spread of the original (compiled 20.9–21.7 ms there, 21.0 ms here;
+megakernel 18.2–18.4 ms). Two differences, reported as observed: (1) the megakernel p99 is 0.3–0.4 ms
+higher in the verification runs (19.0–19.2 vs 18.7 ms), still below every compiled p99; (2) Inductor
+generated 20 fewer kernels in Kyutai's compiled expert graph (2,433 vs 2,453) and 11 fewer in the
+megakernel path's graph (Euler step 1 is compiled code there too), with unchanged graph replay time
+[INFERENCE: different Inductor fusion decisions in a fresh compile; the top-25 kernel names differ only in
+their numeric suffixes]. The single-input check moved accordingly (it compares against that compiled code).
+The version ladder was re-run as well (`results/verification/tune/`): v1 5.92 ms (4.86 with BK 256, 8 warps),
+v2 63.3 ms (13.4 with 4 warps), v3 48.6 ms (11.25 with `maxnreg=255`), v4 4.00 ms (4.17 with L2 prefetch,
+4.21 with 2 programs per SM).
 
 ## Figures
 
-FIGURES_PLACEHOLDER
+Built by [`figures/make_figures.py`](figures/make_figures.py) from the result JSONs; the tidy CSV behind
+each figure is in [`results/csv/`](results/csv/). PNG and SVG in [`figures/`](figures/).
+
+| | |
+|---|---|
+| (a) median + p99 latency, original and verification runs ([csv](results/csv/latency_summary.csv)) | ![latency](figures/a_latency.png) |
+| (b) latency CDF, compiled vs megakernel, all runs ([csv](results/csv/latency_calls.csv)) | ![cdf](figures/b_latency_cdf.png) |
+| (c) time breakdown of one predict ([csv](results/csv/breakdown.csv)) | ![breakdown](figures/c_breakdown.png) |
+| (d) GPU kernels per predict, verification run ([csv](results/csv/kernels.csv)) | ![kernels](figures/d_kernels.png) |
+| (e) per-chunk max \|Δ\|, verification run ([csv](results/csv/correctness_per_chunk.csv)) | ![correctness](figures/e_correctness.png) |
+| (f) megakernel versions and configs, Euler steps 2–10 ([csv](results/csv/tuning.csv)) | ![tuning](figures/f_tuning.png) |
+
+In (c) the expert's "rest of the graph" is the expert stage minus the isolated replay of modulations +
+`register_prepare` + step 1, i.e. Euler steps 2–10 plus graph overhead. (e) uses the verification run only:
+the per-chunk outputs of the original run were not kept (its summary is in `results/original/correctness.json`).
 
 ## Limitations
 
 - One GPU type (H100 SXM), one cloud machine per run, batch 1, one checkpoint (LIBERO finetune).
 - No closed-loop LIBERO evaluation: correctness is measured as |Δ| of the action chunks against Kyutai's
   own paths, not as task success.
-- The compiled path varies from run to run (median 20.9 vs 21.7 ms in the original runs); compare speed-ups
-  within a run.
+- The compiled path varies from run to run (median 20.9–21.7 ms over four runs on two machines); compare
+  speed-ups within a run. Inductor's kernel count for the compiled expert also varied between builds
+  (2,453 vs 2,433).
 - The megakernel is specialized to this expert's shapes (≤ 16 action rows, width 768, 12 heads, batch 1)
   and to H100's 132 SMs being co-resident; it relies on all programs being resident (a software grid
   barrier deadlocks otherwise).

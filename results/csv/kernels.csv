@@ -1,0 +1,7 @@
+source,mode,kernels_per_predict,host_launch_calls,graph_launches,prefill_graph,expert_graph,outside_graphs
+original,eager,13972.0,13971.0,0.0,,,
+original,compiled,4837.0,18.0,2.0,2366,2453,18.0
+original,mk,2791.0,18.0,2.0,2366,407,18.0
+verification,eager,13972.0,13971.0,0.0,,,
+verification,compiled,4817.0,18.0,2.0,2366,2433,18.0
+verification,mk,2780.0,18.0,2.0,2366,396,18.0

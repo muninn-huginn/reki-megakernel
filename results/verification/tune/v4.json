@@ -1,0 +1,92 @@
+{
+ "impl": "mk_expert",
+ "barrier_only_poll0_us_per_barrier": 1.0217862994703528,
+ "barrier_only_poll1_us_per_barrier": 1.2392767488139949,
+ "{}": {
+  "max_abs_diff_vs_compiled": 0.0019327402114868164,
+  "max_abs_diff_all_dims": 0.0019327402114868164,
+  "graph_ms": 3.9982240200042725,
+  "n_regs": 255,
+  "n_spills": 80,
+  "stage_us_median": {
+   "qkv": 5.472,
+   "sa_attn": 4.768,
+   "sa_o+res": 3.2,
+   "ca_q": 5.12,
+   "ca_attn": 5.344,
+   "ca_o+res": 3.488,
+   "gate_up": 7.328,
+   "down+res": 7.424,
+   "tail": 21.312
+  },
+  "stage_us_sum_ms": {
+   "qkv": 0.531616,
+   "sa_attn": 0.45836799999999994,
+   "sa_o+res": 0.290496,
+   "ca_q": 0.4943999999999999,
+   "ca_attn": 0.502688,
+   "ca_o+res": 0.315808,
+   "gate_up": 0.696768,
+   "down+res": 0.67216,
+   "tail": 0.193088
+  }
+ },
+ "{\"L2PF\": true}": {
+  "max_abs_diff_vs_compiled": 0.0019327402114868164,
+  "max_abs_diff_all_dims": 0.0019327402114868164,
+  "graph_ms": 4.1695520877838135,
+  "n_regs": 255,
+  "n_spills": 88,
+  "stage_us_median": {
+   "qkv": 5.2,
+   "sa_attn": 6.608,
+   "sa_o+res": 3.168,
+   "ca_q": 5.184,
+   "ca_attn": 6.064,
+   "ca_o+res": 2.848,
+   "gate_up": 6.528,
+   "down+res": 6.496,
+   "tail": 23.52
+  },
+  "stage_us_sum_ms": {
+   "qkv": 0.51392,
+   "sa_attn": 0.6117760000000001,
+   "sa_o+res": 0.29683200000000004,
+   "ca_q": 0.5180480000000001,
+   "ca_attn": 0.5761599999999999,
+   "ca_o+res": 0.259104,
+   "gate_up": 0.636192,
+   "down+res": 0.589376,
+   "tail": 0.210464
+  }
+ },
+ "{\"GRID\": 2}": {
+  "max_abs_diff_vs_compiled": 0.0019327402114868164,
+  "max_abs_diff_all_dims": 0.0019327402114868164,
+  "graph_ms": 4.21070408821106,
+  "n_regs": 255,
+  "n_spills": 80,
+  "stage_us_median": {
+   "qkv": 5.536,
+   "sa_attn": 4.736,
+   "sa_o+res": 3.232,
+   "ca_q": 4.992,
+   "ca_attn": 5.216,
+   "ca_o+res": 3.392,
+   "gate_up": 8.64,
+   "down+res": 7.456,
+   "tail": 21.504
+  },
+  "stage_us_sum_ms": {
+   "qkv": 0.54112,
+   "sa_attn": 0.453664,
+   "sa_o+res": 0.29113599999999995,
+   "ca_q": 0.48761599999999994,
+   "ca_attn": 0.493088,
+   "ca_o+res": 0.30895999999999996,
+   "gate_up": 0.8020160000000001,
+   "down+res": 0.6725760000000002,
+   "tail": 0.19535999999999998
+  }
+ }
+}
