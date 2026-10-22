@@ -1,0 +1,9 @@
+# Installed by scripts/setup.sh after torch==2.10.0 / torchvision==0.25.0 (cu128 index) and Kyutai's reki
+# package at commit b2a3393 (pip install -e third_party/reki). Pins follow Kyutai's pixi.lock.
+transformers==5.3.0
+flash-linear-attention==0.4.2
+triton==3.6.0
+pyarrow
+pandas
+matplotlib
+huggingface_hub[cli]

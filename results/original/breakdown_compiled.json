@@ -1,0 +1,136 @@
+{
+ "mode": "compiled",
+ "gpu": "NVIDIA H100 80GB HBM3",
+ "kernels": {
+  "kernels_per_predict": 4837.0,
+  "host_kernel_launch_calls_per_predict": 18.0,
+  "graph_launches_per_predict": 2.0,
+  "top_kernels": [
+   [
+    "nvjet_tst_64x8_64x16_4x2_v_bz_TNT",
+    3600
+   ],
+   [
+    "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<a",
+    1460
+   ],
+   [
+    "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda",
+    1225
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<2, at::native::FillFunctor<unsign",
+    1150
+   ],
+   [
+    "void pytorch_flash::flash_fwd_kernel<Flash_fwd_kernel_traits<64, 128, 128, 4, fa",
+    1120
+   ],
+   [
+    "triton_per_fused__to_copy__varlen_attn_add_cat_mean_mul_neg_pow_rsqrt_slice_unsq",
+    900
+   ],
+   [
+    "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<a",
+    845
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_",
+    610
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<8, at::native::bfloat16_copy_kern",
+    565
+   ],
+   [
+    "void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __n",
+    500
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<8, at::native::CUDAFunctor_add<c1",
+    485
+   ],
+   [
+    "triton_poi_fused__to_copy_add_cat_mean_mul_pow_rsqrt_unsqueeze_view_4",
+    450
+   ],
+   [
+    "triton_poi_fused__to_copy__varlen_attn_add_cat_mean_mul_pow_rsqrt_unsqueeze_view",
+    450
+   ],
+   [
+    "triton_poi_fused_mul_silu_9",
+    450
+   ],
+   [
+    "nvjet_tst_64x8_64x16_4x2_v_bz_splitK_TNT",
+    450
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespa",
+    395
+   ],
+   [
+    "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymo",
+    375
+   ],
+   [
+    "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl<at::nati",
+    360
+   ],
+   [
+    "nvjet_tst_144x64_64x8_2x1_v_bz_TNN",
+    330
+   ],
+   [
+    "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::M",
+    305
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<4, at::native::rsqrt_kernel_cuda(",
+    305
+   ],
+   [
+    "nvjet_tst_64x8_64x16_2x4_v_bz_TNT",
+    300
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<2, at::native::CUDAFunctorOnSelf_",
+    270
+   ],
+   [
+    "nvjet_tst_64x64_64x13_2x1_v_bz_bias_TNT",
+    250
+   ],
+   [
+    "void at::native::(anonymous namespace)::vectorized_layer_norm_kernel<c10::BFloat",
+    245
+   ]
+  ]
+ },
+ "stages_gpu_timeline_ms": {
+  "preprocess": 2.1588480472564697,
+  "prefill": 10.977696418762207,
+  "gather_state": 0.050335999578237534,
+  "expert": 8.208255767822266,
+  "register_append": 0.024288000538945198,
+  "decode_d2h": 0.21001599729061127
+ },
+ "stages_host_ms": {
+  "preprocess": 2.160536008886993,
+  "prefill": 2.1363869891501963,
+  "gather_state": 0.4026190144941211,
+  "expert": 0.44204501318745315,
+  "register_append": 0.09514400153420866,
+  "decode_d2h": 16.39452498056926
+ },
+ "total_ms": 21.627647399902344,
+ "subsplit_graph_replay_ms": {
+  "prefill_graph_ms": 9.154320240020752,
+  "vision_tower_ms": 2.8725759983062744,
+  "expert_graph_ms": 8.260816097259521,
+  "mods_prepare_step1_ms": 1.3215839862823486,
+  "one_euler_step_ms": 0.7738879919052124,
+  "ref_steps_2_to_N_ms": 6.992111921310425
+ }
+}

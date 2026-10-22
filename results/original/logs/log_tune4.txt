@@ -1,0 +1,96 @@
+Loading pretrained weights from ckpt/reki-2b-libero/model.safetensors
+  Loaded 873/873 keys (0 missing: new proprio)
+{"maxnreg": 255} {"max_abs_diff_vs_compiled": 0.002081170678138733, "max_abs_diff_all_dims": 0.002081170678138733, "graph_ms": 11.249328136444092, "n_regs": 255, "n_spills": 1174, "stage_us_median": {"qkv": 26.64, "sa_attn": 9.472, "sa_o+res": 6.144, "ca_q": 8.16, "ca_attn": 8.08, "ca_o+res": 3.136, "gate_up": 37.376, "down+res": 12.544, "tail": 148.416}, "stage_us_sum_ms": {"qkv": 2.474944, "sa_attn": 0.8592319999999999, "sa_o+res": 0.5565120000000001, "ca_q": 0.7479999999999999, "ca_attn": 0.7290880000000002, "ca_o+res": 0.28124800000000005, "gate_up": 3.3980479999999997, "down+res": 1.1376960000000003, "tail": 1.3528}}
+{"maxnreg": 168} {"max_abs_diff_vs_compiled": 0.002081170678138733, "max_abs_diff_all_dims": 0.002081170678138733, "graph_ms": 15.531423568725586, "n_regs": 168, "n_spills": 1198, "stage_us_median": {"qkv": 33.647999999999996, "sa_attn": 10.976, "sa_o+res": 8.928, "ca_q": 12.352, "ca_attn": 8.512, "ca_o+res": 4.08, "gate_up": 61.343999999999994, "down+res": 12.672, "tail": 179.808}, "stage_us_sum_ms": {"qkv": 3.10608, "sa_attn": 0.9921599999999999, "sa_o+res": 0.809888, "ca_q": 1.1286399999999999, "ca_attn": 0.767968, "ca_o+res": 0.36803199999999997, "gate_up": 5.591743999999999, "down+res": 1.1505919999999998, "tail": 1.6396480000000002}}
+{"maxnreg": 255, "num_warps": 4} {"max_abs_diff_vs_compiled": 0.002770364284515381, "max_abs_diff_all_dims": 0.002770364284515381, "graph_ms": 10.829103946685791, "n_regs": 255, "n_spills": 1402, "stage_us_median": {"qkv": 23.104, "sa_attn": 11.328, "sa_o+res": 6.256, "ca_q": 12.4, "ca_attn": 10.144, "ca_o+res": 3.36, "gate_up": 31.567999999999998, "down+res": 10.0, "tail": 153.952}, "stage_us_sum_ms": {"qkv": 2.127616, "sa_attn": 1.020128, "sa_o+res": 0.56736, "ca_q": 1.112096, "ca_attn": 0.915008, "ca_o+res": 0.303584, "gate_up": 2.8572159999999998, "down+res": 0.9046719999999999, "tail": 1.412544}}
+{
+ "barrier_only_poll0_us_per_barrier": 0.9966246477545124,
+ "barrier_only_poll1_us_per_barrier": 1.2076054942117977,
+ "{\"maxnreg\": 255}": {
+  "max_abs_diff_vs_compiled": 0.002081170678138733,
+  "max_abs_diff_all_dims": 0.002081170678138733,
+  "graph_ms": 11.249328136444092,
+  "n_regs": 255,
+  "n_spills": 1174,
+  "stage_us_median": {
+   "qkv": 26.64,
+   "sa_attn": 9.472,
+   "sa_o+res": 6.144,
+   "ca_q": 8.16,
+   "ca_attn": 8.08,
+   "ca_o+res": 3.136,
+   "gate_up": 37.376,
+   "down+res": 12.544,
+   "tail": 148.416
+  },
+  "stage_us_sum_ms": {
+   "qkv": 2.474944,
+   "sa_attn": 0.8592319999999999,
+   "sa_o+res": 0.5565120000000001,
+   "ca_q": 0.7479999999999999,
+   "ca_attn": 0.7290880000000002,
+   "ca_o+res": 0.28124800000000005,
+   "gate_up": 3.3980479999999997,
+   "down+res": 1.1376960000000003,
+   "tail": 1.3528
+  }
+ },
+ "{\"maxnreg\": 168}": {
+  "max_abs_diff_vs_compiled": 0.002081170678138733,
+  "max_abs_diff_all_dims": 0.002081170678138733,
+  "graph_ms": 15.531423568725586,
+  "n_regs": 168,
+  "n_spills": 1198,
+  "stage_us_median": {
+   "qkv": 33.647999999999996,
+   "sa_attn": 10.976,
+   "sa_o+res": 8.928,
+   "ca_q": 12.352,
+   "ca_attn": 8.512,
+   "ca_o+res": 4.08,
+   "gate_up": 61.343999999999994,
+   "down+res": 12.672,
+   "tail": 179.808
+  },
+  "stage_us_sum_ms": {
+   "qkv": 3.10608,
+   "sa_attn": 0.9921599999999999,
+   "sa_o+res": 0.809888,
+   "ca_q": 1.1286399999999999,
+   "ca_attn": 0.767968,
+   "ca_o+res": 0.36803199999999997,
+   "gate_up": 5.591743999999999,
+   "down+res": 1.1505919999999998,
+   "tail": 1.6396480000000002
+  }
+ },
+ "{\"maxnreg\": 255, \"num_warps\": 4}": {
+  "max_abs_diff_vs_compiled": 0.002770364284515381,
+  "max_abs_diff_all_dims": 0.002770364284515381,
+  "graph_ms": 10.829103946685791,
+  "n_regs": 255,
+  "n_spills": 1402,
+  "stage_us_median": {
+   "qkv": 23.104,
+   "sa_attn": 11.328,
+   "sa_o+res": 6.256,
+   "ca_q": 12.4,
+   "ca_attn": 10.144,
+   "ca_o+res": 3.36,
+   "gate_up": 31.567999999999998,
+   "down+res": 10.0,
+   "tail": 153.952
+  },
+  "stage_us_sum_ms": {
+   "qkv": 2.127616,
+   "sa_attn": 1.020128,
+   "sa_o+res": 0.56736,
+   "ca_q": 1.112096,
+   "ca_attn": 0.915008,
+   "ca_o+res": 0.303584,
+   "gate_up": 2.8572159999999998,
+   "down+res": 0.9046719999999999,
+   "tail": 1.412544
+  }
+ }
+}
