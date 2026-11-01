@@ -1,0 +1,137 @@
+{
+ "mode": "mk_fasthost_cprefill",
+ "gpu": "NVIDIA GeForce RTX 4090",
+ "kernels": {
+  "kernels_per_predict": 1659.0,
+  "host_kernel_launch_calls_per_predict": 23.0,
+  "graph_launches_per_predict": 2.0,
+  "top_kernels": [
+   [
+    "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_64x64_32x6_t",
+    630
+   ],
+   [
+    "void cublasLt::splitKreduce_kernel<32, 16, int, __nv_bfloat16, __nv_bfloat16, fl",
+    610
+   ],
+   [
+    "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x1",
+    455
+   ],
+   [
+    "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<a",
+    425
+   ],
+   [
+    "ampere_bf16_s16816gemm_bf16_64x64_sliced1x2_ldg8_f2f_stages_64x5_tn",
+    330
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<2, at::native::FillFunctor<unsign",
+    250
+   ],
+   [
+    "void pytorch_flash::flash_fwd_kernel<Flash_fwd_kernel_traits<64, 128, 128, 4, fa",
+    220
+   ],
+   [
+    "triton_red_fused__to_copy_add_mean_mul_pow_rsqrt_0",
+    210
+   ],
+   [
+    "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_32x32_64x1_",
+    180
+   ],
+   [
+    "l2norm_fwd_kernel",
+    180
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<2, at::native::CUDAFunctorOnSelf_",
+    180
+   ],
+   [
+    "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda",
+    150
+   ],
+   [
+    "triton_per_fused__to_copy_add_arange_lt_mean_mul_ones_like_pow_rsqrt_split_split",
+    140
+   ],
+   [
+    "triton_per_fused_native_layer_norm_0",
+    120
+   ],
+   [
+    "ampere_bf16_s1688gemm_bf16_64x64_sliced1x4_ldg8_f2f_tn",
+    120
+   ],
+   [
+    "triton_poi_fused__to_copy__varlen_attn_add_addmm_cat_clone_mul_neg_permute_slice",
+    120
+   ],
+   [
+    "ampere_bf16_s1688gemm_bf16_128x128_ldg8_f2f_stages_32x1_tn",
+    120
+   ],
+   [
+    "ampere_bf16_s16816gemm_bf16_64x64_ldg8_relu_f2f_stages_64x5_tn",
+    110
+   ],
+   [
+    "triton_poi_fused__to_copy__varlen_attn_addmm_clone_permute_unbind_view_1",
+    100
+   ],
+   [
+    "triton_per_fused_add_native_layer_norm_0",
+    100
+   ],
+   [
+    "triton_poi_fused_addmm_gelu_1",
+    100
+   ],
+   [
+    "triton_poi_fused_add_addmm_2",
+    100
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<2, at::native::FillFunctor<long>,",
+    100
+   ],
+   [
+    "triton_per_fused__to_copy__varlen_attn_add_cat_cos_mean_mul_neg_pow_rsqrt_select",
+    100
+   ],
+   [
+    "triton_poi_fused__to_copy__varlen_attn_add_cat_cos_mean_mul_pow_rsqrt_select_sin",
+    100
+   ]
+  ]
+ },
+ "stages_gpu_timeline_ms": {
+  "preprocess": 0.6159679889678955,
+  "prefill": 9.614463806152344,
+  "gather_state": 0.03302399814128876,
+  "expert": 5.409152030944824,
+  "register_append": 0.016863999888300896,
+  "decode_d2h": 0.19628800451755524
+ },
+ "stages_host_ms": {
+  "preprocess": 0.616392819210887,
+  "prefill": 0.49416301771998405,
+  "gather_state": 0.42196200229227543,
+  "expert": 0.16046012751758099,
+  "register_append": 0.12580002658069134,
+  "decode_d2h": 14.061060966923833
+ },
+ "total_ms": 15.897600173950195,
+ "subsplit_graph_replay_ms": {
+  "prefill_graph_ms": 9.471968173980713,
+  "vision_tower_ms": 3.0899839401245117,
+  "expert_graph_ms": 5.413599967956543,
+  "mods_prepare_step1_ms": 1.533471941947937,
+  "one_euler_step_ms": 0.9144960045814514,
+  "ref_steps_2_to_N_ms": 7.753824234008789,
+  "mk_steps_2_to_N_ms": 3.8993279933929443
+ }
+}

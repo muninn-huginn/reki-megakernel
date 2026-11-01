@@ -1,7 +1,8 @@
 """Figures of the study from the committed result files: writes figures/*.png|svg and the tidy CSV each one is
 built from (results/csv/). Run from the repo root: `python figures/make_figures.py`.
 
-Sources: results/original/ (the study run) and results/verification/ (re-run from a fresh clone). The |Δ|
+Sources: results/original/ (the study run), results/verification/ (re-run from a fresh clone) and results/opt/
+(second round: host fixes, compiled prefill, megakernel v5; figures g, h and the v4/v5 points of figure f). The |Δ|
 distributions need the per-chunk outputs of bench.py (results/verification/run_a/chunks_*.pt, not committed);
 when absent, the committed results/csv/correctness_per_chunk.csv is reused.
 """
@@ -25,6 +26,7 @@ LABEL = {'eager': 'eager (Kyutai, compile=False)', 'compiled': 'Kyutai compiled 
          'mk': 'megakernel (Euler steps 2–10)'}
 SRC = {'original': RES / 'original', 'verification': RES / 'verification'}
 RUNS = {'original': {'run_a': '', 'run_b': 'run_b'}, 'verification': {'run_a': 'run_a', 'run_b': 'run_b'}}
+OPT = RES / 'opt'  # second round (2026-11-01): host fixes, compiled prefill, megakernel v5 (fig. g, tuning in f)
 
 plt.rcParams.update({'figure.dpi': 120, 'savefig.dpi': 160, 'font.size': 10, 'axes.spines.top': False,
                      'axes.spines.right': False})
@@ -170,6 +172,48 @@ def fig_breakdown():
     save(fig, 'c_breakdown')
 
 
+# ------------------------------------------------------------------------------------------------ (h) breakdown, 2nd round
+OPT_PATHS = [('compiled', 'Kyutai compiled'), ('mk', 'megakernel v5'),
+             ('compiled_fasthost_cprefill', 'compiled + host fixes + compiled prefill'),
+             ('mk_fasthost_cprefill', 'megakernel + host fixes + compiled prefill')]
+
+
+def fig_breakdown_opt():
+    rows = []
+    for tag, label in OPT_PATHS:
+        d = jload(OPT / f'breakdown_{tag}.json')
+        if d is None:
+            continue
+        st, sub = d['stages_gpu_timeline_ms'], d['subsplit_graph_replay_ms']
+        vals = [st['preprocess'], sub['vision_tower_ms'], st['prefill'] - sub['vision_tower_ms'],
+                sub['mods_prepare_step1_ms'], st['expert'] - sub['mods_prepare_step1_ms'],
+                st['gather_state'] + st['register_append'] + st['decode_d2h']]
+        rows += [{'path': tag, 'label': label, 'part': part, 'ms': v, 'total_ms': d['total_ms']}
+                 for (part, _), v in zip(PARTS, vals)]
+    if not rows:
+        return
+    write_csv('breakdown_opt.csv', rows)
+    paths = [(t, lab) for t, lab in OPT_PATHS if any(r['path'] == t for r in rows)]
+    fig, ax = plt.subplots(figsize=(9, 4))
+    for i, (tag, _) in enumerate(paths):
+        left = 0
+        for part, col in PARTS:
+            v = next(r['ms'] for r in rows if (r['path'], r['part']) == (tag, part))
+            ax.barh(i, v, left=left, color=C[col], label=part if i == 0 else None, edgecolor='white', lw=0.5)
+            if v > 0.9:
+                ax.text(left + v / 2, i, f'{v:.1f}', ha='center', va='center', fontsize=8, color='white')
+            left += v
+        ax.text(left + 0.2, i, f'{left:.1f} ms', va='center', fontsize=8)
+    ax.set_yticks(range(len(paths)), [lab for _, lab in paths], fontsize=8)
+    ax.invert_yaxis()
+    ax.axvline(1000 / 60, color=C['k'], lw=0.8, ls='--')
+    ax.text(1000 / 60 + 0.1, -0.45, '60 Hz', fontsize=8)
+    ax.set_xlabel('ms on the GPU timeline (median of warm predicts; sub-splits from isolated graph replay)')
+    ax.set_title('Where one predict spends its time, second round')
+    ax.legend(fontsize=7, loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=2)
+    save(fig, 'h_breakdown_opt')
+
+
 # ------------------------------------------------------------------------------------------------ (d) kernels
 def fig_kernels():
     rows = []
@@ -256,35 +300,124 @@ def fig_tuning():
                 rows.append({'source': 'original', 'version': ver, 'config': m.group(1), 'graph_ms': d['graph_ms'],
                              'max_abs_diff_vs_compiled': d['max_abs_diff_vs_compiled'],
                              'spill_bytes': d.get('n_spills')})
-    for p in sorted((SRC['verification'] / 'tune').glob('v*.json')):
-        d = jload(p)
-        for cfg, r in d.items():
-            if cfg.startswith('{') and 'graph_ms' in r:
-                rows.append({'source': 'verification', 'version': p.stem, 'config': cfg, 'graph_ms': r['graph_ms'],
-                             'max_abs_diff_vs_compiled': r['max_abs_diff_vs_compiled'], 'spill_bytes': r.get('n_spills')})
+    for src, tune_dir in (('verification', SRC['verification'] / 'tune'), ('opt', OPT / 'tune')):
+        for p in sorted(tune_dir.glob('v*.json')):
+            d = jload(p)
+            for cfg, r in d.items():
+                if cfg.startswith('{') and 'graph_ms' in r:
+                    rows.append({'source': src, 'version': p.stem, 'config': cfg, 'graph_ms': r['graph_ms'],
+                                 'max_abs_diff_vs_compiled': r['max_abs_diff_vs_compiled'],
+                                 'spill_bytes': r.get('n_spills')})
     write_csv('tuning.csv', rows)
     ref = [jload(SRC[s] / 'breakdown_compiled.json')['subsplit_graph_replay_ms']['ref_steps_2_to_N_ms']
            for s in available_sources()]
-    fig, ax = plt.subplots(figsize=(9, 4.2))
-    vers = ['v1', 'v2', 'v3', 'v4']
-    for src, mk, off in (('original', 'o', -0.12), ('verification', 's', 0.12)):
+    fig, ax = plt.subplots(figsize=(10, 4.2))
+    vers = ['v1', 'v2', 'v3', 'v4', 'v5']
+    for src, mk, off, col in (('original', 'o', -0.18, C['compiled']), ('verification', 's', 0.0, C['mk']),
+                              ('opt', '^', 0.18, C['a'])):
         for r in (r for r in rows if r['source'] == src):
             x = vers.index(r['version']) + off
-            ax.scatter(x, r['graph_ms'], marker=mk, color=C['compiled'] if src == 'original' else C['mk'], s=28,
-                       label=src if r is next(q for q in rows if q['source'] == src) else None)
+            ax.scatter(x, r['graph_ms'], marker=mk, color=col, s=28,
+                       label={'opt': 'second round'}.get(src, src) if r is next(q for q in rows if q['source'] == src)
+                       else None)
     for v in ref:
         ax.axhline(v, color=C['k'], lw=0.8, ls='--')
-    ax.text(3.5, ref[0], f'Kyutai compiled, steps 2–10: {ref[0]:.2f} ms', ha='right', va='bottom', fontsize=8)
+    ax.text(4.5, ref[0], f'Kyutai compiled, steps 2–10: {ref[0]:.2f} ms', ha='right', va='bottom', fontsize=8)
     ax.set_yscale('log')
     ax.set_yticks([4, 5, 7, 10, 20, 40, 70], ['4', '5', '7', '10', '20', '40', '70'])
     ax.minorticks_off()
-    ax.set_xticks(range(4), ['v1\nK-looped tiles', 'v2\nregister prefetch', 'v3\nsingle-shot tiles',
-                             'v4 (final)\nv1 tiles + parallel tail'])
+    ax.set_xticks(range(5), ['v1\nK-looped tiles', 'v2\nregister prefetch', 'v3\nsingle-shot tiles',
+                             'v4\nv1 tiles + parallel tail', 'v5 (final)\nv4 + own-tile L2 prefetch'])
     ax.set_ylabel('Euler steps 2–10, graph replay ms (log)')
     ax.set_title('Megakernel versions and tile/launch configs (each dot one config)')
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3, axis='y')
     save(fig, 'f_tuning')
+
+
+# ------------------------------------------------------------------------------------------------ (g) ladder
+LADDER = [('compiled', 'Kyutai compiled'), ('compiled_fasthost', '+ host fixes'),
+          ('compiled_fasthost_cprefill', '+ host fixes + compiled prefill'), ('mk', 'megakernel v5'),
+          ('mk_fasthost', 'megakernel + host fixes'), ('mk_fasthost_cprefill', 'megakernel + host fixes + compiled prefill')]
+
+
+def fig_ladder():
+    rows = []
+    for run in ('run_a', 'run_b'):
+        for tag, label in LADDER:
+            d = jload(OPT / run / f'latency_{tag}.json')
+            if d is not None:
+                rows.append({'run': run, 'path': tag, 'label': label, 'n': d['n'], 'median_ms': d['median_ms'],
+                             'p10_ms': d['p10_ms'], 'p90_ms': d['p90_ms'], 'p99_ms': d['p99_ms'], 'mean_ms': d['mean_ms']})
+    if not rows:
+        return
+    write_csv('ladder_latency.csv', rows)
+    fig, ax = plt.subplots(figsize=(9, 4))
+    ys = {tag: len(LADDER) - 1 - i for i, (tag, _) in enumerate(LADDER)}
+    for r in rows:
+        y = ys[r['path']] + (0.18 if r['run'] == 'run_a' else -0.18)
+        col = C['mk'] if r['path'].startswith('mk') else C['compiled']
+        ax.barh(y, r['median_ms'], height=0.32, color=col, alpha=1.0 if r['run'] == 'run_a' else 0.6)
+        ax.plot([r['median_ms'], r['p99_ms']], [y, y], color=C['k'], lw=0.8)
+        ax.text(r['p99_ms'] + 0.15, y, f"{r['median_ms']:.2f} ({r['p99_ms']:.2f})", va='center', fontsize=7)
+    ax.set_yticks(list(ys.values()), [label for _, label in LADDER], fontsize=8)
+    ax.axvline(1000 / 60, color=C['k'], lw=0.8, ls='--')
+    ax.text(1000 / 60 + 0.1, len(LADDER) - 0.45, '60 Hz: 16.7 ms', fontsize=8)
+    ax.set_xlim(0, max(r['p99_ms'] for r in rows) * 1.2)
+    ax.set_xlabel('ms per predict: median (bar), whisker to p99; run A dark, run B light')
+    ax.set_title('Second round: host fixes, compiled prefill and megakernel v5 (880 timed calls per bar)')
+    save(fig, 'g_ladder')
+
+
+# ------------------------------------------------------------------------------------------------ (i) other GPUs
+GPU_PATHS = [('compiled', 'Kyutai compiled', C['compiled'], 1.0), ('mk', 'megakernel v5', C['mk'], 1.0),
+             ('compiled_fasthost_cprefill', 'compiled + host fixes + compiled prefill', C['compiled'], 0.55),
+             ('mk_fasthost_cprefill', 'megakernel + host fixes + compiled prefill', C['mk'], 0.55)]
+
+
+def gpu_runs():
+    """(label, dir) of every per-GPU run: results/gpus/<slug>/ plus the second-round H100 run A."""
+    short = {'RTX PRO 6000 Blackwell Server Edition': 'RTX PRO 6000*', 'A100-SXM4-80GB': 'A100 SXM',
+             'RTX 5090': 'RTX 5090*'}
+    runs = [('H100 SXM', OPT / 'run_a')]
+    for d in sorted((RES / 'gpus').glob('*/')):
+        name = (d / 'gpu.txt').read_text().split(',')[0].strip() if (d / 'gpu.txt').exists() else d.name
+        name = name.replace('NVIDIA ', '').replace('GeForce ', '')
+        runs.append((short.get(name, name), d))
+    return runs
+
+
+def fig_gpus():
+    rows = []
+    for gpu, d in gpu_runs():
+        for tag, label, _, _ in GPU_PATHS:
+            r = jload(d / f'latency_{tag}.json')
+            if r is not None:
+                rows.append({'gpu': gpu, 'path': tag, 'median_ms': r['median_ms'], 'p99_ms': r['p99_ms'],
+                             'p10_ms': r['p10_ms'], 'p90_ms': r['p90_ms'], 'n': r['n']})
+    if len({r['gpu'] for r in rows}) < 2:
+        return
+    write_csv('gpus_latency.csv', rows)
+    gpus = sorted({r['gpu'] for r in rows},
+                  key=lambda g: next((r['median_ms'] for r in rows if r['gpu'] == g and r['path'] == 'compiled'), 1e9))
+    fig, ax = plt.subplots(figsize=(11, 4.4))
+    w = 0.2
+    for j, (tag, label, col, alpha) in enumerate(GPU_PATHS):
+        for i, g in enumerate(gpus):
+            r = next((r for r in rows if (r['gpu'], r['path']) == (g, tag)), None)
+            if r is None:
+                continue
+            x = i + (j - 1.5) * w
+            ax.bar(x, r['median_ms'], w, color=col, alpha=alpha, label=label if i == 0 else None)
+            ax.text(x, r['median_ms'], f"{r['median_ms']:.1f}", ha='center', va='bottom', fontsize=6.5)
+    ax.axhline(1000 / 60, color=C['k'], lw=0.8, ls='--')
+    ax.text(-0.5, 1000 / 60 + 0.3, '60 Hz', ha='left', fontsize=8)
+    ax.set_xticks(range(len(gpus)), gpus, fontsize=8)
+    ax.set_ylabel('ms per predict (median)')
+    ax.set_xlabel('* sm_120: the max |Δ| vs eager comes from single gripper flips on a decision boundary, see README')
+    ax.set_title('REKI predict on different GPUs (batch 1, 440 LIBERO frames, 880 timed calls per bar)')
+    ax.legend(fontsize=8, ncol=2, loc='upper left', bbox_to_anchor=(0.06, 1.0))
+    save(fig, 'i_gpus')
 
 
 if __name__ == '__main__':
@@ -295,3 +428,6 @@ if __name__ == '__main__':
     fig_kernels()
     fig_correctness()
     fig_tuning()
+    fig_ladder()
+    fig_breakdown_opt()
+    fig_gpus()

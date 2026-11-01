@@ -1,0 +1,17 @@
+{
+ "barrier_count": 96360,
+ "expected": 96360,
+ "nprog": 132,
+ "n_valid": 2,
+ "S": 182,
+ "S_pad": 256,
+ "max|compiled-eager| action dims": 0.002817392349243164,
+ "max|compiled-eager| all dims": 0.002817392349243164,
+ "max|mk-compiled| action dims": 0.002290189266204834,
+ "max|mk-compiled| all dims": 0.002290189266204834,
+ "max|mk-eager| action dims": 0.0010562017560005188,
+ "max|mk-eager| all dims": 0.0011917226947844028,
+ "ref_max_abs_x": 1.0025297403335571,
+ "ref_steps_2_to_N_graph_ms": 6.728815793991089,
+ "mk_steps_2_to_N_graph_ms": 3.9125280380249023
+}

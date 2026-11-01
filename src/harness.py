@@ -90,6 +90,27 @@ def load_policy(ckpt: str, compile: bool):
     return pol
 
 
+def load_path(ckpt: str, mode: str, fast_host: bool = False, compile_prefill: bool = False):
+    """The policy of one inference path and its tag (the suffix of the result files): ``mode`` eager |
+    compiled | mk (``mk_expert.install``), plus the host fixes (``fast_host.install``, tag
+    ``_fasthost``) and the compiled prefill (``fast_prefill.install``, tag ``_cprefill``)."""
+    pol = load_policy(ckpt, compile=mode != 'eager')
+    tag = mode
+    if mode == 'mk':
+        from mk_expert import install
+        install(pol.policy.model)
+    if fast_host:
+        import fast_host as fh
+        fh.install(pol)
+        tag += '_fasthost'
+    if compile_prefill:
+        assert mode != 'eager', 'the compiled prefill replaces the prefill graphs of a compiled policy'
+        import fast_prefill
+        fast_prefill.install(pol.policy.model)
+        tag += '_cprefill'
+    return pol, tag
+
+
 def run_episodes(pol, episodes, noise: FixedNoise, timed: bool = False):
     """Predict every frame of every episode in order (reset at each episode start). Returns per-call
     wall latencies in ms (host-synchronous: predict ends with the device->host copy of the chunk)."""

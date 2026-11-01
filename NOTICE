@@ -10,6 +10,10 @@ Third-party notices
      cached register K/V, cross-attention to the VLM, SiLU MLP, fp32 action projections, Euler
      update) as Triton kernels, and `install()` replaces RekiFlowModel._expert_actions with an
      adapted copy that keeps REKI's own _step_modulations / _expert_first_step calls.
+   - src/fast_host.py contains a copy of RekiPolicy.predict (passing the camera arrays on instead of
+     PIL images) and re-implements FastQwenImageProcessor's normalization and patchify on the GPU.
+   - src/fast_prefill.py subclasses REKI's PrefillGraphs / _LayoutGraph and adapts
+     PrefillGraphs.__call__.
    - src/harness.py, src/profile_breakdown.py and the other scripts call and instrument REKI's
      inference API (RekiPolicy, its CUDA-graph caches and register cache).
    These derived parts are covered by Kyutai's notice below in addition to this repository's LICENSE.

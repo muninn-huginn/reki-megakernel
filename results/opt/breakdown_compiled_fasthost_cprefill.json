@@ -1,0 +1,136 @@
+{
+ "mode": "compiled_fasthost_cprefill",
+ "gpu": "NVIDIA H100 80GB HBM3",
+ "kernels": {
+  "kernels_per_predict": 3586.0,
+  "host_kernel_launch_calls_per_predict": 23.0,
+  "graph_launches_per_predict": 2.0,
+  "top_kernels": [
+   [
+    "nvjet_tst_64x8_64x16_4x2_v_bz_TNT",
+    3600
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<2, at::native::FillFunctor<unsign",
+    1150
+   ],
+   [
+    "void pytorch_flash::flash_fwd_kernel<Flash_fwd_kernel_traits<64, 128, 128, 4, fa",
+    1120
+   ],
+   [
+    "triton_per_fused__to_copy__varlen_attn_add_cat_mean_mul_neg_pow_rsqrt_slice_unsq",
+    900
+   ],
+   [
+    "void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __n",
+    500
+   ],
+   [
+    "triton_poi_fused__to_copy_add_cat_mean_mul_pow_rsqrt_unsqueeze_view_3",
+    450
+   ],
+   [
+    "triton_poi_fused__to_copy__varlen_attn_add_cat_mean_mul_pow_rsqrt_unsqueeze_view",
+    450
+   ],
+   [
+    "triton_poi_fused_mul_silu_8",
+    450
+   ],
+   [
+    "nvjet_tst_64x8_64x16_4x2_v_bz_splitK_TNT",
+    450
+   ],
+   [
+    "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<a",
+    425
+   ],
+   [
+    "nvjet_tst_144x64_64x8_2x1_v_bz_TNN",
+    330
+   ],
+   [
+    "nvjet_tst_64x8_64x16_2x4_v_bz_TNT",
+    300
+   ],
+   [
+    "triton_red_fused__to_copy_add_mean_mul_pow_rsqrt_0",
+    210
+   ],
+   [
+    "nvjet_tst_48x64_64x15_2x1_v_bz_TNN",
+    210
+   ],
+   [
+    "nvjet_tst_64x8_64x16_1x4_h_bz_TNT",
+    180
+   ],
+   [
+    "l2norm_fwd_kernel",
+    180
+   ],
+   [
+    "void at::native::vectorized_elementwise_kernel<2, at::native::CUDAFunctorOnSelf_",
+    180
+   ],
+   [
+    "nvjet_tst_64x8_64x16_4x2_v_badd_TNT",
+    155
+   ],
+   [
+    "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda",
+    150
+   ],
+   [
+    "nvjet_tst_64x64_64x13_2x1_v_bz_TNT",
+    140
+   ],
+   [
+    "triton_per_fused__to_copy_add_arange_lt_mean_mul_ones_like_pow_rsqrt_split_split",
+    140
+   ],
+   [
+    "triton_per_fused_native_layer_norm_0",
+    120
+   ],
+   [
+    "nvjet_tst_96x128_64x7_2x1_v_bz_TNN",
+    120
+   ],
+   [
+    "triton_poi_fused__to_copy__varlen_attn_add_addmm_cat_clone_mul_neg_permute_slice",
+    120
+   ],
+   [
+    "nvjet_tst_128x128_64x6_2x1_v_bz_TNT",
+    120
+   ]
+  ]
+ },
+ "stages_gpu_timeline_ms": {
+  "preprocess": 0.8433600068092346,
+  "prefill": 5.839615821838379,
+  "gather_state": 0.04822399839758873,
+  "expert": 8.185567855834961,
+  "register_append": 0.023423999547958374,
+  "decode_d2h": 0.298911988735199
+ },
+ "stages_host_ms": {
+  "preprocess": 0.8458960801362991,
+  "prefill": 0.479759881272912,
+  "gather_state": 0.5390509031713009,
+  "expert": 0.527336960658431,
+  "register_append": 0.12303097173571587,
+  "decode_d2h": 12.734869960695505
+ },
+ "total_ms": 15.229567527770996,
+ "subsplit_graph_replay_ms": {
+  "prefill_graph_ms": 5.491551876068115,
+  "vision_tower_ms": 1.5727359652519226,
+  "expert_graph_ms": 8.191136360168457,
+  "mods_prepare_step1_ms": 1.3167679905891418,
+  "one_euler_step_ms": 0.7738400101661682,
+  "ref_steps_2_to_N_ms": 6.906383991241455
+ }
+}

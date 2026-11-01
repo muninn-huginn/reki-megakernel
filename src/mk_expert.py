@@ -1,4 +1,4 @@
-"""A persistent Triton megakernel for REKI's action expert: Euler steps 2..N in ONE launch (v4).
+"""A persistent Triton megakernel for REKI's action expert: Euler steps 2..N in ONE launch (v5).
 
 Replaces the Python loop of ``RekiFlowModel._expert_actions`` over ``_expert_step`` (one compiled
 graph per step, ~30 Inductor/cuBLAS/flash kernels per expert layer) with a single kernel of
@@ -12,9 +12,12 @@ L2-resident global scratch buffers, read with ``.cg`` loads (L1 bypass: other SM
 History (superseded versions in archive/, timings in README.md): v1
 (``mk_expert_v1.py``): K-looped tiles, one-program tail. v2/v3 (``mk_expert_v2.py``,
 ``mk_expert_v3.py``): single-shot tiles and weight prefetch into registers across barriers --
-register spills made them 2-10x slower than v1. v4 (this file): v1's K-looped GEMM tiles, a
-single-shot RMS pass, and a step tail spread over 72 programs (every in-proj program recomputes
-the 8 real action dims of the velocity; 24 programs compute the padded dims).
+register spills made them 2-10x slower than v1. v4 (``mk_expert_v4.py``): v1's K-looped GEMM
+tiles, a single-shot RMS pass, and a step tail spread over 72 programs (every in-proj program
+recomputes the 8 real action dims of the velocity; 24 programs compute the padded dims); its L2
+prefetch by the programs idle in a stage delayed their barrier arrival. v5 (this file): the barrier
+is split into arrive and wait, and in between each program prefetches into L2 the weight tiles it
+owns in the next weight stage (``_pf_own``), so the prefetch never delays an arrival.
 
 Everything step 1 produces is kept from the reference path: modulations of all steps,
 ``register_prepare`` (CA source K/V, cos/sin, cu_seqlens) and Euler step 1 with the register rows
@@ -38,14 +41,19 @@ def _globaltimer():
 
 
 @triton.jit
-def _grid_sync(bar_ptr, nb, nprog, prof_ptr, pid, POLL: tl.constexpr, PROFILE: tl.constexpr):
-    """Barrier ``nb`` (1-based): all programs arrive, then wait until the counter reaches nb * nprog
-    (monotonic counter, so no reset race). Scalar atomics are executed once per program.
-    POLL=0 spins with acquire atomics, POLL=1 with volatile loads then one acquire.
-    PROFILE: program 0 stores %globaltimer after the barrier at prof_ptr[nb]."""
-    target = nb * nprog
+def _arrive(bar_ptr):
+    """Arrive at the next grid barrier: once per program, after all its threads' stores."""
     tl.debug_barrier()
     tl.atomic_add(bar_ptr, 1, sem='release', scope='gpu')
+
+
+@triton.jit
+def _wait(bar_ptr, nb, nprog, prof_ptr, pid, POLL: tl.constexpr, PROFILE: tl.constexpr):
+    """Wait for barrier ``nb`` (1-based): until the counter reaches nb * nprog (monotonic counter, so
+    no reset race). Scalar atomics are executed once per program. POLL=0 spins with acquire atomics,
+    POLL=1 with volatile loads then one acquire. PROFILE: program 0 stores %globaltimer after the
+    barrier at prof_ptr[nb]."""
+    target = nb * nprog
     if POLL == 0:
         v = tl.atomic_add(bar_ptr, 0, sem='acquire', scope='gpu')
         while v < target:
@@ -62,16 +70,24 @@ def _grid_sync(bar_ptr, nb, nprog, prof_ptr, pid, POLL: tl.constexpr, PROFILE: t
 
 
 @triton.jit
-def _l2_prefetch(base, n_elems, part, nparts, LINES: tl.constexpr = 256):
-    """Prefetch slice ``part`` of ``nparts`` of the bf16 range [base, base + n_elems) into L2
-    (``prefetch.global.L2``, one 128-byte line per thread; no registers held, nothing waits)."""
-    per = (n_elems + nparts - 1) // nparts
-    lo = part * per
-    hi = tl.minimum(lo + per, n_elems)
-    for c in range(lo, hi, LINES * 64):
-        o = tl.minimum(c + tl.arange(0, LINES) * 64, hi - 1)
-        tl.inline_asm_elementwise('prefetch.global.L2 [$1];\n\tmov.u32 $0, 0;', '=r,l', [base + o],
-                                  dtype=tl.int32, is_pure=False, pack=1)
+def _grid_sync(bar_ptr, nb, nprog, prof_ptr, pid, POLL: tl.constexpr, PROFILE: tl.constexpr):
+    """Grid barrier ``nb``: ``_arrive`` then ``_wait``."""
+    _arrive(bar_ptr)
+    _wait(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
+
+
+@triton.jit
+def _pf_own(w_ptr, n_tiles, tile_elems, pid, nprog, LINES: tl.constexpr = 128):
+    """``prefetch.global.L2`` of the weight tiles this program owns in a coming stage: tiles t = pid,
+    pid + nprog, .. < n_tiles, tile t = bf16 elements [t * tile_elems, (t + 1) * tile_elems) of w_ptr
+    (a row block of a row-major weight). One 128-byte line per thread and instruction; no registers
+    held, nothing waits."""
+    for t in range(pid, n_tiles, nprog):
+        base = w_ptr + t * tile_elems
+        for c in range(0, tile_elems, LINES * 64):
+            o = tl.minimum(c + tl.arange(0, LINES) * 64, tile_elems - 1)
+            tl.inline_asm_elementwise('prefetch.global.L2 [$1];\n\tmov.u32 $0, 0;', '=r,l', [base + o],
+                                      dtype=tl.int32, is_pure=False, pack=1)
 
 
 @triton.jit
@@ -298,7 +314,7 @@ def expert_megakernel(
         NH: tl.constexpr, HD: tl.constexpr, PM: tl.constexpr, PMP: tl.constexpr, SP: tl.constexpr,
         MODW: tl.constexpr, BK: tl.constexpr, BN_QKV: tl.constexpr, BN_O: tl.constexpr,
         BN_GU: tl.constexpr, BN_D: tl.constexpr, BS: tl.constexpr, BT: tl.constexpr, POLL: tl.constexpr,
-        PROFILE: tl.constexpr, L2PF: tl.constexpr):
+        PROFILE: tl.constexpr, PF: tl.constexpr):
     pid = tl.program_id(0)
     nprog = tl.num_programs(0)
     dt = tl.load(dt_ptr)
@@ -310,7 +326,12 @@ def expert_megakernel(
     _step_tail(True, pid, 0, xbuf_ptr, hl_ptr, h0_ptr, mods_ptr, wout_ptr, bout_ptr, win_ptr, bin_ptr, dt, action_dim,
                T, eps, TP, H, A, AO, BT)
     nb += 1
-    _grid_sync(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
+    # PF: between arriving and waiting, each program prefetches into L2 its tiles of the next weight
+    # stage (QKV here; then o, CA-q, CA-o, gate/up, down, next layer's QKV).
+    _arrive(bar_ptr)
+    if PF:
+        _pf_own(wqkv_ptr, 3 * H // BN_QKV, BN_QKV * H, pid, nprog)
+    _wait(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
     for s in range(n_steps):
         mrow = mods_ptr + (1 + s) * MODW
         for l in range(L):
@@ -318,13 +339,7 @@ def expert_megakernel(
             m_ca = m_sa + 3 * H
             m_mlp = m_ca + 3 * H
             h_ptr = hh_ptr + tl.where(l == 0, 0, TP * H)
-            # L2PF schedule (idle programs of a stage prefetch ~10-60 KB each): S1 o + CA-q, S2 CA-o + gate,
-            # S3 up, S4 down, S5 next layer's QKV.
             # 1. QKV of AdaRMS(h)
-            if L2PF:
-                if pid >= 3 * H // BN_QKV:
-                    _l2_prefetch(wo_ptr + l * H * H, H * H, pid - 3 * H // BN_QKV, nprog - 3 * H // BN_QKV)
-                    _l2_prefetch(wqca_ptr + l * H * H, H * H, pid - 3 * H // BN_QKV, nprog - 3 * H // BN_QKV)
             rstd = _row_rstd(h_ptr, T, eps, TP, H, BK)
             for t in range(pid, 3 * H // BN_QKV, nprog):
                 acc = _mm_modnorm(h_ptr, rstd, m_sa, wqkv_ptr + l * 3 * H * H, t * BN_QKV, T, TP, H, BN_QKV, BK)
@@ -332,30 +347,29 @@ def expert_megakernel(
                 rows = tl.arange(0, TP)
                 tl.store(qkv_ptr + rows[:, None] * (3 * H) + nn[None, :], acc.to(tl.bfloat16), mask=rows[:, None] < T)
             nb += 1
-            _grid_sync(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
+            _arrive(bar_ptr)
+            if PF:
+                _pf_own(wo_ptr + l * H * H, H // BN_O, BN_O * H, pid, nprog)
+            _wait(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
             # 2. self-attention per head
-            if L2PF:
-                if pid >= NH:
-                    _l2_prefetch(woca_ptr + l * H * H, H * H, pid - NH, nprog - NH)
-                    _l2_prefetch(wg_ptr + l * I * H, I * H, pid - NH, nprog - NH)
             if pid < NH:
                 _sa_attention(pid, l, qkv_ptr, qn_ptr, kn_ptr, sacos_ptr, sasin_ptr, memk_ptr, memv_ptr, kv_start,
                               y_ptr, T, qk_eps, sm_scale, TP, HD, NH, PM, PMP, H)
             nb += 1
-            _grid_sync(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
+            _arrive(bar_ptr)
+            if PF:
+                _pf_own(wqca_ptr + l * H * H, H // BN_O, BN_O * H, pid, nprog)
+            _wait(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
             # 3. o_proj + gated residual -> h2
-            if L2PF:
-                if pid >= H // BN_O:
-                    _l2_prefetch(wu_ptr + l * I * H, I * H, pid - H // BN_O, nprog - H // BN_O)
             for t in range(pid, H // BN_O, nprog):
                 acc = _mm_plain(y_ptr, wo_ptr + l * H * H, t * BN_O, T, H, TP, BN_O, BK)
                 _gated_residual_store(acc, h_ptr, m_sa + 2 * H, h2_ptr, t * BN_O, T, TP, H, BN_O)
             nb += 1
-            _grid_sync(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
+            _arrive(bar_ptr)
+            if PF:
+                _pf_own(woca_ptr + l * H * H, H // BN_O, BN_O * H, pid, nprog)
+            _wait(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
             # 4. CA query of AdaRMS(h2)
-            if L2PF:
-                if pid >= H // BN_O:
-                    _l2_prefetch(wd_ptr + l * H * I, H * I, pid - H // BN_O, nprog - H // BN_O)
             rstd = _row_rstd(h2_ptr, T, eps, TP, H, BK)
             for t in range(pid, H // BN_O, nprog):
                 acc = _mm_modnorm(h2_ptr, rstd, m_ca, wqca_ptr + l * H * H, t * BN_O, T, TP, H, BN_O, BK)
@@ -363,22 +377,29 @@ def expert_megakernel(
                 rows = tl.arange(0, TP)
                 tl.store(qca_ptr + rows[:, None] * H + nn[None, :], acc.to(tl.bfloat16), mask=rows[:, None] < T)
             nb += 1
-            _grid_sync(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
+            _arrive(bar_ptr)
+            if PF:
+                _pf_own(wg_ptr + l * I * H, I // BN_GU, BN_GU * H, pid, nprog)
+                _pf_own(wu_ptr + l * I * H, I // BN_GU, BN_GU * H, pid, nprog)
+            _wait(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
             # 5. cross-attention per head
-            if L2PF:
-                if pid >= NH:
-                    _l2_prefetch(wqkv_ptr + ((l + 1) % L) * 3 * H * H, 3 * H * H, pid - NH, nprog - NH)
             if pid < NH:
                 _ca_attention(pid, l, qca_ptr, qcan_ptr, cacos_ptr, casin_ptr, kca_ptr, vca_ptr, S, y_ptr, T,
                               qk_eps, sm_scale, TP, HD, NH, SP, H, BS)
             nb += 1
-            _grid_sync(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
+            _arrive(bar_ptr)
+            if PF:
+                _pf_own(wd_ptr + l * H * I, H // BN_D, BN_D * I, pid, nprog)
+            _wait(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
             # 6. CA o_proj + gated residual -> h3
             for t in range(pid, H // BN_O, nprog):
                 acc = _mm_plain(y_ptr, woca_ptr + l * H * H, t * BN_O, T, H, TP, BN_O, BK)
                 _gated_residual_store(acc, h2_ptr, m_ca + 2 * H, h3_ptr, t * BN_O, T, TP, H, BN_O)
             nb += 1
-            _grid_sync(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
+            _arrive(bar_ptr)
+            if PF:
+                _pf_own(wqkv_ptr + ((l + 1) % L) * 3 * H * H, 3 * H // BN_QKV, BN_QKV * H, pid, nprog)
+            _wait(bar_ptr, nb, nprog, prof_ptr, pid, POLL, PROFILE)
             # 7. gate/up of AdaRMS(h3), g = silu(gate) * up
             rstd = _row_rstd(h3_ptr, T, eps, TP, H, BK)
             for t in range(pid, I // BN_GU, nprog):
@@ -452,11 +473,10 @@ class ExpertMegakernel:
         self.nprog = torch.cuda.get_device_properties(dev).multi_processor_count
         self.prof = torch.zeros(4096, device=dev, dtype=torch.int64)
         # Tile sizes / launch options; AO: real action dims carried through the loop (>= action_dim);
-        # POLL: barrier spin flavour; PROFILE: per-barrier timestamps (tune_mk.py); L2PF: programs idle in
-        # a stage prefetch the weights of the coming stages into L2 (off: GEMM stages gain ~0.5 us each but
-        # the barriers wait on the prefetching programs, net +0.17 ms; see the report).
+        # POLL: barrier spin flavour; PROFILE: per-barrier timestamps (tune_mk.py); PF: L2 prefetch of each
+        # program's next weight tiles between barrier arrive and wait (v5; off = v4 without its L2PF).
         self.cfg = dict(BK=256, BN_QKV=32, BN_O=16, BN_GU=32, BN_D=16, BS=64, BT=16, AO=8, POLL=0, PROFILE=False,
-                        L2PF=False, num_warps=4, num_stages=3)
+                        PF=True, num_warps=4, num_stages=3)
         assert self.nprog >= self.H // self.cfg['BT'] + self.A - self.cfg['AO'], 'step tail: one task per program'
         self.compiled = None  # Triton CompiledKernel of the last launch (n_regs / n_spills)
 

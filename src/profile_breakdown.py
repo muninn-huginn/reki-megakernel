@@ -1,6 +1,6 @@
 """Where one REKI predict spends its time, and how many kernels it launches.
 
-    python profile_breakdown.py --mode compiled|eager|mk --out results/
+    python profile_breakdown.py --mode compiled|eager|mk [--fast-host] [--compile-prefill] --out results/
 
 1. Stage split of warm predicts (CUDA events + host clocks at the stage boundaries): host
    preprocessing, VLM prefill (vision + LM), CA-source gather + state cond, action expert,
@@ -21,7 +21,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent))
 import reki.inference.policy as rpol  # noqa: E402
-from harness import CKPT, DATA, FixedNoise, load_episodes, load_policy  # noqa: E402
+from harness import CKPT, DATA, FixedNoise, load_episodes, load_path  # noqa: E402
 
 STAGES = ['preprocess', 'prefill', 'gather_state', 'expert', 'register_append', 'decode_d2h']
 
@@ -159,14 +159,13 @@ def main():
     p.add_argument('--data', default=DATA)
     p.add_argument('--episodes', type=int, default=2)
     p.add_argument('--out', default='results')
+    p.add_argument('--fast-host', action='store_true', help='fast_host.install (tag _fasthost)')
+    p.add_argument('--compile-prefill', action='store_true', help='fast_prefill.install (tag _cprefill)')
     a = p.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     episodes = load_episodes(a.data)[: a.episodes]
-    pol = load_policy(a.ckpt, compile=a.mode != 'eager')
-    if a.mode == 'mk':
-        from mk_expert import install
-        install(pol.policy.model)
+    pol, tag = load_path(a.ckpt, a.mode, a.fast_host, a.compile_prefill)
     model = pol.policy.model
     noise = FixedNoise(model)
     frames = [f for _, fr in episodes for f in fr]
@@ -176,7 +175,7 @@ def main():
         pol.predict(images=fr['images'], state=fr['state'], task=fr['task'])
     torch.cuda.synchronize()
 
-    res = {'mode': a.mode, 'gpu': torch.cuda.get_device_name()}
+    res = {'mode': tag, 'gpu': torch.cuda.get_device_name()}
     res['kernels'] = kernel_counts(pol, frames[:5], False)
 
     marks = Marks()
@@ -238,7 +237,7 @@ def main():
             sub['mk_steps_2_to_N_ms'] = graph_time(lambda: model._mk.run(x0, st['mods'], st['dt'], ent.past, adim))
         res['subsplit_graph_replay_ms'] = sub
     print(json.dumps(res, indent=1))
-    (out / f'breakdown_{a.mode}.json').write_text(json.dumps(res, indent=1) + '\n')
+    (out / f'breakdown_{tag}.json').write_text(json.dumps(res, indent=1) + '\n')
 
 
 if __name__ == '__main__':

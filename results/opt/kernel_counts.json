@@ -1,0 +1,22 @@
+{
+ "compiled": {
+  "prefill_graph_kernels": 2366,
+  "expert_graph_kernels": 2433,
+  "expert_megakernel_launches": 0
+ },
+ "mk": {
+  "prefill_graph_kernels": 2365,
+  "expert_graph_kernels": 395,
+  "expert_megakernel_launches": 1
+ },
+ "compiled_cprefill": {
+  "prefill_graph_kernels": 1127,
+  "expert_graph_kernels": 2430,
+  "expert_megakernel_launches": 0
+ },
+ "mk_cprefill": {
+  "prefill_graph_kernels": 1126,
+  "expert_graph_kernels": 392,
+  "expert_megakernel_launches": 1
+ }
+}

@@ -1,0 +1,25 @@
+path,label,part,ms,total_ms
+compiled,Kyutai compiled,CPU preprocessing,2.203903913497925,22.655744552612305
+compiled,Kyutai compiled,VLM prefill: vision tower,2.8770558834075928,22.655744552612305
+compiled,Kyutai compiled,VLM prefill: LM + host glue,8.956704378128052,22.655744552612305
+compiled,Kyutai compiled,expert: modulations + register_prepare + Euler step 1,1.3106719851493835,22.655744552612305
+compiled,Kyutai compiled,expert: rest of the graph (Euler steps 2–10),6.841392338275909,22.655744552612305
+compiled,Kyutai compiled,"other (gather, register append, decode + D2H)",0.44454398937523365,22.655744552612305
+mk,megakernel v5,CPU preprocessing,2.051392078399658,19.40083122253418
+mk,megakernel v5,VLM prefill: vision tower,2.88483202457428,19.40083122253418
+mk,megakernel v5,VLM prefill: LM + host glue,8.687008261680603,19.40083122253418
+mk,megakernel v5,expert: modulations + register_prepare + Euler step 1,1.3108160495758057,19.40083122253418
+mk,megakernel v5,expert: rest of the graph (Euler steps 2–10),4.034752130508423,19.40083122253418
+mk,megakernel v5,"other (gather, register append, decode + D2H)",0.38800000585615635,19.40083122253418
+compiled_fasthost_cprefill,compiled + host fixes + compiled prefill,CPU preprocessing,0.8433600068092346,15.229567527770996
+compiled_fasthost_cprefill,compiled + host fixes + compiled prefill,VLM prefill: vision tower,1.5727359652519226,15.229567527770996
+compiled_fasthost_cprefill,compiled + host fixes + compiled prefill,VLM prefill: LM + host glue,4.266879856586456,15.229567527770996
+compiled_fasthost_cprefill,compiled + host fixes + compiled prefill,expert: modulations + register_prepare + Euler step 1,1.3167679905891418,15.229567527770996
+compiled_fasthost_cprefill,compiled + host fixes + compiled prefill,expert: rest of the graph (Euler steps 2–10),6.868799865245819,15.229567527770996
+compiled_fasthost_cprefill,compiled + host fixes + compiled prefill,"other (gather, register append, decode + D2H)",0.3705599866807461,15.229567527770996
+mk_fasthost_cprefill,megakernel + host fixes + compiled prefill,CPU preprocessing,0.7628160119056702,12.308416366577148
+mk_fasthost_cprefill,megakernel + host fixes + compiled prefill,VLM prefill: vision tower,1.578383982181549,12.308416366577148
+mk_fasthost_cprefill,megakernel + host fixes + compiled prefill,VLM prefill: LM + host glue,4.215760171413422,12.308416366577148
+mk_fasthost_cprefill,megakernel + host fixes + compiled prefill,expert: modulations + register_prepare + Euler step 1,1.3095200061798096,12.308416366577148
+mk_fasthost_cprefill,megakernel + host fixes + compiled prefill,expert: rest of the graph (Euler steps 2–10),4.042896032333374,12.308416366577148
+mk_fasthost_cprefill,megakernel + host fixes + compiled prefill,"other (gather, register append, decode + D2H)",0.3795840013772249,12.308416366577148

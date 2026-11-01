@@ -1,0 +1,15 @@
+Why max |Δ| reaches 1.7-1.9 on sm_120 (RTX 5090 rerun, 2026-11-01): 3 episodes, 86 frames, bench.py
+--min-calls 1 for eager, compiled and mk --fast-host --compile-prefill (chunk files not kept).
+
+Per-frame max |Δ| (7 action dims), compiled vs eager: 1e-3..5e-3 on 85 frames, 0.2 on one frame (episode
+file-000.parquet:ep2, frame 22). compiled vs mk+host+compiled-prefill: 2e-3..1e-2 on 85 frames, 1.93 on the same
+frame. That frame's chunk, gripper dim (6), actions 0..9:
+  compiled  -1.004 -1.002  1.001  1.012 -0.985 -0.988 -0.994 -0.999  0.936  1.002
+  eager     -1.006 -1.004  0.999  1.012 -0.986 -0.991 -0.997 -1.002  0.699  1.002
+  mk+       -1.004 -1.004  0.999  1.014 -0.988 -0.989 -0.995 -0.999 -0.998  1.005
+Action 8 is a gripper toggle on a decision boundary: the paths land on different sides. Max |Δ| over the six
+arm dims on that frame: 0.067. Frames above 0.05: 1 of 86 for both pairs.
+
+Prefill on sm_120 vs RTX 4090 (one frame, per-layer outputs of Kyutai's prefill kernels, relative L2): 2.1e-3
+after the patch embed, up to 0.16 inside the vision tower, 2.6e-2 at the VLM output; the 4090's own eager vs
+compiled prefill differs by 2.4e-2 at the output. No layer stands out: no kernel error found.
