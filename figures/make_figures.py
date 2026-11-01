@@ -19,17 +19,34 @@ import numpy as np  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 RES, FIG, CSV = ROOT / 'results', ROOT / 'figures', ROOT / 'results' / 'csv'
-# Okabe-Ito (colour-blind safe)
-C = {'eager': '#999999', 'compiled': '#0072B2', 'mk': '#D55E00', 'a': '#009E73', 'b': '#CC79A7', 'c': '#E69F00',
-     'd': '#56B4E9', 'e': '#F0E442', 'k': '#000000'}
+# Colors of the plots on kyutai.org/reki: dark background, REKI green for "ours", gray for the baseline, their
+# blue / magenta / orange for the VLM prefill / Euler loop / other parts, light gray text.
+KY = {'bg': '#121212', 'grid': '#2a2a2a', 'tick': '#9d9d9d', 'text': '#b5bcc5', 'white': '#ffffff',
+      'green': '#39F2AE', 'green_dark': '#1E8C63', 'gray': '#6b7280'}
+C = {'eager': '#A99BF0', 'compiled': KY['gray'], 'mk': KY['green'], 'a': '#e040c8', 'b': '#EB6834', 'c': '#c98326',
+     'd': '#4a86e8', 'e': '#5B9BEA', 'k': KY['text']}
 LABEL = {'eager': 'eager (Kyutai, compile=False)', 'compiled': 'Kyutai compiled (CUDA graphs)',
          'mk': 'megakernel (Euler steps 2–10)'}
 SRC = {'original': RES / 'original', 'verification': RES / 'verification'}
 RUNS = {'original': {'run_a': '', 'run_b': 'run_b'}, 'verification': {'run_a': 'run_a', 'run_b': 'run_b'}}
 OPT = RES / 'opt'  # second round (2026-11-01): host fixes, compiled prefill, megakernel v5 (fig. g, tuning in f)
 
-plt.rcParams.update({'figure.dpi': 120, 'savefig.dpi': 160, 'font.size': 10, 'axes.spines.top': False,
-                     'axes.spines.right': False})
+plt.rcParams.update({
+    'figure.dpi': 120, 'savefig.dpi': 160, 'font.size': 10,
+    'figure.facecolor': KY['bg'], 'axes.facecolor': KY['bg'], 'savefig.facecolor': KY['bg'],
+    'axes.spines.top': False, 'axes.spines.right': False, 'axes.spines.left': False, 'axes.spines.bottom': False,
+    'axes.edgecolor': KY['grid'], 'axes.labelcolor': KY['tick'], 'axes.titlecolor': KY['white'],
+    'axes.grid': True, 'axes.grid.axis': 'y', 'axes.axisbelow': True, 'grid.color': KY['grid'], 'grid.linewidth': 1.0,
+    'xtick.color': KY['tick'], 'ytick.color': KY['tick'], 'xtick.labelcolor': KY['text'],
+    'ytick.labelcolor': KY['text'], 'text.color': KY['text'],
+    'legend.facecolor': KY['bg'], 'legend.edgecolor': KY['grid'], 'legend.labelcolor': KY['text'],
+})
+
+
+def ink(color):
+    """Text color readable on a bar of ``color``: the background for light bars, white for dark ones."""
+    r, g, b = matplotlib.colors.to_rgb(color)
+    return KY['bg'] if 0.299 * r + 0.587 * g + 0.114 * b > 0.55 else KY['white']
 
 
 def jload(p):
@@ -133,10 +150,10 @@ def fig_cdf():
 
 
 # ------------------------------------------------------------------------------------------------ (c) breakdown
-PARTS = [('CPU preprocessing', 'c'), ('VLM prefill: vision tower', 'd'), ('VLM prefill: LM + host glue', 'compiled'),
+PARTS = [('CPU preprocessing', 'c'), ('VLM prefill: vision tower', 'e'), ('VLM prefill: LM + host glue', 'd'),
          ('expert: modulations + register_prepare + Euler step 1', 'a'),
          ('expert: rest of the graph (Euler steps 2–10)', 'mk'),
-         ('other (gather, register append, decode + D2H)', 'eager')]
+         ('other (gather, register append, decode + D2H)', 'compiled')]
 
 
 def fig_breakdown():
@@ -159,9 +176,11 @@ def fig_breakdown():
         left = 0
         for part, col in PARTS:
             v = next(r['ms'] for r in rows if (r['source'], r['mode'], r['part']) == (src, mode, part))
-            ax.barh(i, v, left=left, color=C[col], label=part if i == 0 else None, edgecolor='white', lw=0.5)
+            ax.barh(i, v, left=left, color=C[col], label=part if i == 0 else None, edgecolor=KY['bg'], lw=0.8)
+            ax.grid(False)
+            ax.xaxis.grid(True)
             if v > 0.9:
-                ax.text(left + v / 2, i, f'{v:.1f}', ha='center', va='center', fontsize=8, color='white')
+                ax.text(left + v / 2, i, f'{v:.1f}', ha='center', va='center', fontsize=8, color=ink(C[col]))
             left += v
         ax.text(left + 0.2, i, f'{left:.1f} ms', va='center', fontsize=8)
     ax.set_yticks(range(len(bars)), [f'{"compiled" if m == "compiled" else "megakernel"} ({s})' for s, m in bars])
@@ -199,9 +218,11 @@ def fig_breakdown_opt():
         left = 0
         for part, col in PARTS:
             v = next(r['ms'] for r in rows if (r['path'], r['part']) == (tag, part))
-            ax.barh(i, v, left=left, color=C[col], label=part if i == 0 else None, edgecolor='white', lw=0.5)
+            ax.barh(i, v, left=left, color=C[col], label=part if i == 0 else None, edgecolor=KY['bg'], lw=0.8)
+            ax.grid(False)
+            ax.xaxis.grid(True)
             if v > 0.9:
-                ax.text(left + v / 2, i, f'{v:.1f}', ha='center', va='center', fontsize=8, color='white')
+                ax.text(left + v / 2, i, f'{v:.1f}', ha='center', va='center', fontsize=8, color=ink(C[col]))
             left += v
         ax.text(left + 0.2, i, f'{left:.1f} ms', va='center', fontsize=8)
     ax.set_yticks(range(len(paths)), [lab for _, lab in paths], fontsize=8)
@@ -240,7 +261,7 @@ def fig_kernels():
         if r['mode'] == 'eager':
             ax.bar(i, r['kernels_per_predict'], color=C['eager'], label='eager: all launched from the host')
         else:
-            ax.bar(i, r['prefill_graph'], color=C['compiled'], label='VLM prefill graph' if i == 1 else None)
+            ax.bar(i, r['prefill_graph'], color=C['d'], label='VLM prefill graph' if i == 1 else None)
             ax.bar(i, r['expert_graph'], bottom=r['prefill_graph'], color=C['mk'],
                    label='expert graph' if i == 1 else None)
             ax.bar(i, r['outside_graphs'], bottom=r['prefill_graph'] + r['expert_graph'], color=C['k'],
@@ -313,8 +334,8 @@ def fig_tuning():
            for s in available_sources()]
     fig, ax = plt.subplots(figsize=(10, 4.2))
     vers = ['v1', 'v2', 'v3', 'v4', 'v5']
-    for src, mk, off, col in (('original', 'o', -0.18, C['compiled']), ('verification', 's', 0.0, C['mk']),
-                              ('opt', '^', 0.18, C['a'])):
+    for src, mk, off, col in (('original', 'o', -0.18, C['compiled']), ('verification', 's', 0.0, C['d']),
+                              ('opt', '^', 0.18, C['mk'])):
         for r in (r for r in rows if r['source'] == src):
             x = vers.index(r['version']) + off
             ax.scatter(x, r['graph_ms'], marker=mk, color=col, s=28,
@@ -358,21 +379,23 @@ def fig_ladder():
         y = ys[r['path']] + (0.18 if r['run'] == 'run_a' else -0.18)
         col = C['mk'] if r['path'].startswith('mk') else C['compiled']
         ax.barh(y, r['median_ms'], height=0.32, color=col, alpha=1.0 if r['run'] == 'run_a' else 0.6)
+        ax.grid(False)
+        ax.xaxis.grid(True)
         ax.plot([r['median_ms'], r['p99_ms']], [y, y], color=C['k'], lw=0.8)
         ax.text(r['p99_ms'] + 0.15, y, f"{r['median_ms']:.2f} ({r['p99_ms']:.2f})", va='center', fontsize=7)
     ax.set_yticks(list(ys.values()), [label for _, label in LADDER], fontsize=8)
     ax.axvline(1000 / 60, color=C['k'], lw=0.8, ls='--')
     ax.text(1000 / 60 + 0.1, len(LADDER) - 0.45, '60 Hz: 16.7 ms', fontsize=8)
     ax.set_xlim(0, max(r['p99_ms'] for r in rows) * 1.2)
-    ax.set_xlabel('ms per predict: median (bar), whisker to p99; run A dark, run B light')
+    ax.set_xlabel('ms per predict: median (bar), whisker to p99; run A bright, run B dim')
     ax.set_title('Second round: host fixes, compiled prefill and megakernel v5 (880 timed calls per bar)')
     save(fig, 'g_ladder')
 
 
 # ------------------------------------------------------------------------------------------------ (i) other GPUs
-GPU_PATHS = [('compiled', 'Kyutai compiled', C['compiled'], 1.0), ('mk', 'megakernel v5', C['mk'], 1.0),
-             ('compiled_fasthost_cprefill', 'compiled + host fixes + compiled prefill', C['compiled'], 0.55),
-             ('mk_fasthost_cprefill', 'megakernel + host fixes + compiled prefill', C['mk'], 0.55)]
+GPU_PATHS = [('compiled', 'Kyutai compiled', C['compiled'], 1.0), ('mk', 'megakernel v5', C['mk'], 0.4),
+             ('compiled_fasthost_cprefill', 'compiled + host fixes + compiled prefill', C['compiled'], 0.45),
+             ('mk_fasthost_cprefill', 'megakernel + host fixes + compiled prefill', C['mk'], 1.0)]
 
 
 def gpu_runs():
@@ -421,11 +444,6 @@ def fig_gpus():
 
 
 # ------------------------------------------------------------------------------------------------ hero (README top, post)
-# Colors of the plots on kyutai.org/reki: dark background, REKI green, other models gray, light gray text.
-KY = {'bg': '#121212', 'grid': '#2a2a2a', 'tick': '#9d9d9d', 'text': '#b5bcc5', 'white': '#ffffff',
-      'green': '#39F2AE', 'green_dark': '#1E8C63', 'gray': '#6b7280'}
-
-
 def fig_hero():
     """One 16:9 picture in the style of kyutai.org/reki: the H100 waterfall of the three changes (left) and
     Kyutai's path vs the final path on every GPU (right). Medians of 880 timed predicts."""
