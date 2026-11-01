@@ -421,9 +421,14 @@ def fig_gpus():
 
 
 # ------------------------------------------------------------------------------------------------ hero (README top, post)
+# Colors of the plots on kyutai.org/reki: dark background, REKI green, other models gray, light gray text.
+KY = {'bg': '#121212', 'grid': '#2a2a2a', 'tick': '#9d9d9d', 'text': '#b5bcc5', 'white': '#ffffff',
+      'green': '#39F2AE', 'green_dark': '#1E8C63', 'gray': '#6b7280'}
+
+
 def fig_hero():
-    """One 16:9 picture: the H100 waterfall of the three changes (left) and Kyutai's path vs the final path
-    on every GPU (right). Medians of 880 timed predicts."""
+    """One 16:9 picture in the style of kyutai.org/reki: the H100 waterfall of the three changes (left) and
+    Kyutai's path vs the final path on every GPU (right). Medians of 880 timed predicts."""
     steps = [('compiled', 'Kyutai\ncompiled'), ('compiled_fasthost', '+ host\nfixes'),
              ('compiled_fasthost_cprefill', '+ compiled\nprefill'), ('mk_fasthost_cprefill', '+ Triton\nmegakernel')]
     h100 = [jload(OPT / 'run_a' / f'latency_{t}.json') for t, _ in steps]
@@ -435,45 +440,59 @@ def fig_hero():
     if any(x is None for x in h100) or len(gpu_rows) < 2:
         return
     gpu_rows.sort(key=lambda r: r[2])
-    with plt.rc_context({'font.size': 12}):
+    rc = {'font.size': 12, 'figure.facecolor': KY['bg'], 'axes.facecolor': KY['bg'], 'savefig.facecolor': KY['bg'],
+          'axes.edgecolor': KY['grid'], 'axes.labelcolor': KY['tick'], 'xtick.color': KY['tick'],
+          'ytick.color': KY['tick'], 'text.color': KY['text'], 'axes.spines.left': False,
+          'axes.spines.bottom': False, 'axes.spines.top': False, 'axes.spines.right': False}
+    with plt.rc_context(rc):
         fig = plt.figure(figsize=(12.8, 7.2))
         gs = fig.add_gridspec(1, 2, width_ratios=[1.0, 1.15], wspace=0.32, left=0.07, right=0.97, top=0.80,
                               bottom=0.12)
         ax, bx = fig.add_subplot(gs[0]), fig.add_subplot(gs[1])
         fig.suptitle('Kyutai REKI (2.4B VLA), one robot predict: 21.7 → 12.0 ms on H100 (1.8×)',
-                     fontsize=17, fontweight='bold', y=0.965)
+                     fontsize=17, fontweight='bold', y=0.965, color=KY['white'])
         fig.text(0.5, 0.875, 'batch 1 · 440 real LIBERO frames · median of 880 timed calls · actions within ~1e-2 '
-                 'of eager (host fixes: bitwise identical)', ha='center', fontsize=11, color='#444444')
-        # left: waterfall; the hatched part of each bar is what that change removed
+                 'of eager (host fixes: bitwise identical)', ha='center', fontsize=11, color=KY['tick'])
+        # left: waterfall; the dashed part of each bar is what that change removed
         vals = [d['median_ms'] for d in h100]
+        ax.yaxis.grid(True, color=KY['grid'], lw=1)
+        ax.set_axisbelow(True)
         for i, v in enumerate(vals):
-            col = C['compiled'] if i == 0 else C['mk'] if i == len(vals) - 1 else '#6baed6'
-            ax.bar(i, v, 0.62, color=col)
-            ax.text(i, v / 2, f'{v:.1f}', ha='center', va='center', fontsize=14, fontweight='bold', color='white')
+            last = i == len(vals) - 1
+            col, alpha = (KY['gray'], 1.0) if i == 0 else (KY['green'], 1.0 if last else 0.45)
+            ax.bar(i, v, 0.62, color=col, alpha=alpha, edgecolor=KY['bg'], lw=1)
+            ax.text(i, v / 2, f'{v:.1f}', ha='center', va='center', fontsize=14, fontweight='bold',
+                    color=KY['bg'] if last else KY['white'])
             if i:
                 saved = vals[i - 1] - v
-                ax.bar(i, saved, 0.62, bottom=v, color='none', edgecolor=C['a'], hatch='///', lw=1.2)
+                ax.bar(i, saved, 0.62, bottom=v, color='none', edgecolor=KY['text'], ls=(0, (4, 3)), lw=1.4)
                 ax.text(i, vals[i - 1] + 0.3, f'−{saved:.1f} ms', ha='center', va='bottom', fontsize=12,
-                        fontweight='bold', color=C['a'])
-        ax.set_xticks(range(len(steps)), [s for _, s in steps], fontsize=11)
+                        fontweight='bold', color=KY['green'])
+        ax.set_xticks(range(len(steps)), [s for _, s in steps], fontsize=11, color=KY['text'])
+        ax.tick_params(length=0)
         ax.set_ylabel('ms per predict (H100 SXM)')
         ax.set_ylim(0, vals[0] * 1.15)
-        ax.set_title('What each change saves', fontsize=13, loc='left')
+        ax.set_title('What each change saves', fontsize=13, loc='left', color=KY['white'])
         # right: GPUs
         y = np.arange(len(gpu_rows))
-        bx.barh(y - 0.19, [r[1] for r in gpu_rows], 0.36, color=C['compiled'], label='Kyutai compiled')
-        bx.barh(y + 0.19, [r[2] for r in gpu_rows], 0.36, color=C['mk'], label='this repo (all three changes)')
+        bx.xaxis.grid(True, color=KY['grid'], lw=1)
+        bx.set_axisbelow(True)
+        bx.barh(y - 0.19, [r[1] for r in gpu_rows], 0.36, color=KY['gray'], label='Kyutai compiled')
+        bx.barh(y + 0.19, [r[2] for r in gpu_rows], 0.36, color=KY['green'], label='this repo (all three changes)')
         for yi, (_, a, b) in zip(y, gpu_rows):
-            bx.text(a + 0.3, yi - 0.19, f'{a:.1f}', va='center', fontsize=10)
-            bx.text(b + 0.3, yi + 0.19, f'{b:.1f} ms  ({a / b:.2f}×)', va='center', fontsize=10, fontweight='bold')
-        bx.set_yticks(y, [r[0] for r in gpu_rows], fontsize=11)
-        bx.invert_yaxis()
+            bx.text(a + 0.3, yi - 0.19, f'{a:.1f}', va='center', fontsize=10, color=KY['text'])
+            bx.text(b + 0.3, yi + 0.19, f'{b:.1f} ms  ({a / b:.2f}×)', va='center', fontsize=10, fontweight='bold',
+                    color=KY['green'])
+        bx.set_yticks(y, [r[0] for r in gpu_rows], fontsize=11, color=KY['text'])
+        bx.tick_params(length=0)
         bx.set_xlim(0, max(r[1] for r in gpu_rows) * 1.32)
         bx.set_xlabel('ms per predict')
-        bx.set_title('Same code on 8 GPUs', fontsize=13, loc='left')
+        bx.set_title('Same code on 8 GPUs', fontsize=13, loc='left', color=KY['white'])
         bx.set_ylim(len(gpu_rows) - 0.5, -1.3)  # inverted; an empty band on top holds the legend
-        bx.legend(loc='upper left', ncol=2, fontsize=10.5, frameon=False, handlelength=1.2)
-        fig.text(0.97, 0.02, 'github.com/muninn-huginn/reki-megakernel', ha='right', fontsize=10, color='#666666')
+        leg = bx.legend(loc='upper left', ncol=2, fontsize=10.5, frameon=False, handlelength=1.2)
+        for t in leg.get_texts():
+            t.set_color(KY['text'])
+        fig.text(0.97, 0.02, 'github.com/muninn-huginn/reki-megakernel', ha='right', fontsize=10, color=KY['tick'])
         for ext in ('png', 'svg'):
             fig.savefig(FIG / f'hero.{ext}', dpi=150)
         plt.close(fig)
