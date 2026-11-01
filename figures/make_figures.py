@@ -420,6 +420,66 @@ def fig_gpus():
     save(fig, 'i_gpus')
 
 
+# ------------------------------------------------------------------------------------------------ hero (README top, post)
+def fig_hero():
+    """One 16:9 picture: the H100 waterfall of the three changes (left) and Kyutai's path vs the final path
+    on every GPU (right). Medians of 880 timed predicts."""
+    steps = [('compiled', 'Kyutai\ncompiled'), ('compiled_fasthost', '+ host\nfixes'),
+             ('compiled_fasthost_cprefill', '+ compiled\nprefill'), ('mk_fasthost_cprefill', '+ Triton\nmegakernel')]
+    h100 = [jload(OPT / 'run_a' / f'latency_{t}.json') for t, _ in steps]
+    gpu_rows = []
+    for gpu, d in gpu_runs():
+        a, b = jload(d / 'latency_compiled.json'), jload(d / 'latency_mk_fasthost_cprefill.json')
+        if a and b:
+            gpu_rows.append((gpu.rstrip('*'), a['median_ms'], b['median_ms']))
+    if any(x is None for x in h100) or len(gpu_rows) < 2:
+        return
+    gpu_rows.sort(key=lambda r: r[2])
+    with plt.rc_context({'font.size': 12}):
+        fig = plt.figure(figsize=(12.8, 7.2))
+        gs = fig.add_gridspec(1, 2, width_ratios=[1.0, 1.15], wspace=0.32, left=0.07, right=0.97, top=0.80,
+                              bottom=0.12)
+        ax, bx = fig.add_subplot(gs[0]), fig.add_subplot(gs[1])
+        fig.suptitle('Kyutai REKI (2.4B VLA), one robot predict: 21.7 → 12.0 ms on H100 (1.8×)',
+                     fontsize=17, fontweight='bold', y=0.965)
+        fig.text(0.5, 0.875, 'batch 1 · 440 real LIBERO frames · median of 880 timed calls · actions within ~1e-2 '
+                 'of eager (host fixes: bitwise identical)', ha='center', fontsize=11, color='#444444')
+        # left: waterfall; the hatched part of each bar is what that change removed
+        vals = [d['median_ms'] for d in h100]
+        for i, v in enumerate(vals):
+            col = C['compiled'] if i == 0 else C['mk'] if i == len(vals) - 1 else '#6baed6'
+            ax.bar(i, v, 0.62, color=col)
+            ax.text(i, v / 2, f'{v:.1f}', ha='center', va='center', fontsize=14, fontweight='bold', color='white')
+            if i:
+                saved = vals[i - 1] - v
+                ax.bar(i, saved, 0.62, bottom=v, color='none', edgecolor=C['a'], hatch='///', lw=1.2)
+                ax.text(i, vals[i - 1] + 0.3, f'−{saved:.1f} ms', ha='center', va='bottom', fontsize=12,
+                        fontweight='bold', color=C['a'])
+        ax.set_xticks(range(len(steps)), [s for _, s in steps], fontsize=11)
+        ax.set_ylabel('ms per predict (H100 SXM)')
+        ax.set_ylim(0, vals[0] * 1.15)
+        ax.set_title('What each change saves', fontsize=13, loc='left')
+        # right: GPUs
+        y = np.arange(len(gpu_rows))
+        bx.barh(y - 0.19, [r[1] for r in gpu_rows], 0.36, color=C['compiled'], label='Kyutai compiled')
+        bx.barh(y + 0.19, [r[2] for r in gpu_rows], 0.36, color=C['mk'], label='this repo (all three changes)')
+        for yi, (_, a, b) in zip(y, gpu_rows):
+            bx.text(a + 0.3, yi - 0.19, f'{a:.1f}', va='center', fontsize=10)
+            bx.text(b + 0.3, yi + 0.19, f'{b:.1f} ms  ({a / b:.2f}×)', va='center', fontsize=10, fontweight='bold')
+        bx.set_yticks(y, [r[0] for r in gpu_rows], fontsize=11)
+        bx.invert_yaxis()
+        bx.set_xlim(0, max(r[1] for r in gpu_rows) * 1.32)
+        bx.set_xlabel('ms per predict')
+        bx.set_title('Same code on 8 GPUs', fontsize=13, loc='left')
+        bx.set_ylim(len(gpu_rows) - 0.5, -1.3)  # inverted; an empty band on top holds the legend
+        bx.legend(loc='upper left', ncol=2, fontsize=10.5, frameon=False, handlelength=1.2)
+        fig.text(0.97, 0.02, 'github.com/muninn-huginn/reki-megakernel', ha='right', fontsize=10, color='#666666')
+        for ext in ('png', 'svg'):
+            fig.savefig(FIG / f'hero.{ext}', dpi=150)
+        plt.close(fig)
+    print('wrote hero')
+
+
 if __name__ == '__main__':
     FIG.mkdir(exist_ok=True)
     fig_latency()
@@ -431,3 +491,4 @@ if __name__ == '__main__':
     fig_ladder()
     fig_breakdown_opt()
     fig_gpus()
+    fig_hero()

@@ -1,5 +1,7 @@
 # A megakernel for an open VLA: Kyutai REKI, 21.7 → 12.0 ms per predict on one H100
 
+![Kyutai REKI on one H100: 21.7 → 12.0 ms per predict, and the same code on 8 GPUs](figures/hero.png)
+
 - **12.0 ms per `predict`** on one H100 SXM (batch 1, 440 real LIBERO frames), down from 21.7 ms on
   Kyutai's compiled path: **1.8×**, p99 24.5 → 12.5 ms. In REKI's own loop (one `predict` per second)
   that is 1.2% instead of 2.2% of the cycle; where latency does matter is in [On a robot](#on-a-robot).
@@ -13,17 +15,6 @@
   loop is 1.6–1.95× faster than Kyutai's on every one ([table](#other-gpus)).
 - **Reproducible:** `make setup && make all`. Measured numbers are in [`results/`](results/) (JSON, logs);
   the few that are not are marked. The first round was re-run from a fresh clone on a second H100.
-
-<p>
-  <img src="figures/g_ladder.png" alt="predict latency of each change, compiled and megakernel paths" width="49%">
-  <img src="figures/h_breakdown_opt.png" alt="where one predict spends its time, before and after" width="49%">
-</p>
-<p align="center">
-  <img src="figures/i_gpus.png" alt="predict latency on eight GPUs" width="85%">
-</p>
-<p align="center">
-  <img src="figures/f_tuning.png" alt="megakernel versions v1 to v5, Euler steps 2 to 10" width="75%">
-</p>
 
 ## What this is
 
@@ -330,7 +321,7 @@ results/verification/     first round re-run from a fresh clone
 results/opt/              second round: every path and option, breakdowns, kernel counts, correctness, ladder v1-v5
 results/gpus/             main paths, |Δ|, single-input check and breakdown on seven more GPU types
 results/csv/              tidy CSVs behind each figure
-figures/                  make_figures.py and figures a-i (PNG + SVG)
+figures/                  make_figures.py, figures a-i and hero (PNG + SVG)
 scripts/setup.sh          environment and inputs
 ```
 
@@ -350,6 +341,7 @@ in [`results/csv/`](results/csv/).
 | (g) latency of each change ([csv](results/csv/ladder_latency.csv)) | ![ladder](figures/g_ladder.png) |
 | (h) time breakdown of one predict, second round ([csv](results/csv/breakdown_opt.csv)) | ![breakdown second round](figures/h_breakdown_opt.png) |
 | (i) the four main paths on eight GPUs ([csv](results/csv/gpus_latency.csv)) | ![gpus](figures/i_gpus.png) |
+| hero: the three changes on H100 and both ends on eight GPUs (from the same JSON as g and i) | ![hero](figures/hero.png) |
 
 In (c) and (h), "rest of the graph" is the expert stage minus the isolated replay of step 1, modulations
 and `register_prepare`: Euler steps 2–10 plus graph overhead.
